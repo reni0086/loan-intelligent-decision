@@ -1,0 +1,10 @@
+{"ts": "2026-03-17T15:02:03", "batch_size": 200, "latency_sec": 0.2179, "throughput_per_sec": 918.02}
+{"ts": "2026-03-17T15:02:04", "batch_size": 200, "latency_sec": 0.0747, "throughput_per_sec": 2678.73}
+{"ts": "2026-03-17T15:02:04", "batch_size": 200, "latency_sec": 0.0725, "throughput_per_sec": 2759.94}
+{"ts": "2026-03-17T15:02:05", "batch_size": 200, "latency_sec": 0.1268, "throughput_per_sec": 1576.81}
+{"ts": "2026-03-17T15:02:06", "batch_size": 200, "latency_sec": 0.1262, "throughput_per_sec": 1584.32}
+{"ts": "2026-04-03T23:08:53", "batch_size": 200, "latency_sec": 0.2951, "throughput_per_sec": 677.81}
+{"ts": "2026-04-03T23:08:54", "batch_size": 200, "latency_sec": 0.1625, "throughput_per_sec": 1230.7}
+{"ts": "2026-04-03T23:08:55", "batch_size": 200, "latency_sec": 0.1583, "throughput_per_sec": 1263.78}
+{"ts": "2026-04-03T23:08:55", "batch_size": 200, "latency_sec": 0.1648, "throughput_per_sec": 1213.84}
+{"ts": "2026-04-03T23:08:56", "batch_size": 200, "latency_sec": 0.1536, "throughput_per_sec": 1301.98}

@@ -1,0 +1,8 @@
+OOF AUC raw: 0.657217
+OOF AUC engineered: 0.657545
+OOF AUC blend: 0.658711
+Best blend weight(raw): 0.4500
+scale_pos_weight: 4.6508
+Train rows: 150000
+Raw feature count: 52
+Engineered feature count: 71

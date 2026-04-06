@@ -1,0 +1,19 @@
+AUC: 0.652365
+Accuracy@best_thr: 0.573700
+Best threshold (F1): 0.4650
+Best F1: 0.356075
+
+Classification Report @ best threshold:
+              precision    recall  f1-score   support
+
+           0     0.8852    0.5538    0.6814     24691
+           1     0.2430    0.6660    0.3561      5309
+
+    accuracy                         0.5737     30000
+   macro avg     0.5641    0.6099    0.5187     30000
+weighted avg     0.7716    0.5737    0.6238     30000
+
+Train rows: 120000
+Valid rows: 30000
+Features: 52
+scale_pos_weight: 4.6508

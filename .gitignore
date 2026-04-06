@@ -1,0 +1,10 @@
+﻿*.csv
+*.parquet
+*.joblib
+logs/
+venv/
+__pycache__/
+data_lake/
+artifacts/
+.env
+.DS_Store

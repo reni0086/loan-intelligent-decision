@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>贷款客户信息修复与智能决策系统 - 综合看板</title>
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+  <link rel="stylesheet" href="/dashboard/css/main.css" />
+  <style>
+    /* Dashboard-specific layout overrides */
+    .page-title {
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .page-title .title-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .page-title .title-icon {
+      width: 40px;
+      height: 40px;
+      background: linear-gradient(135deg, #1a73e8, #0d47a1);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 20px;
+    }
+
+    .last-update {
+      font-size: 12px;
+      color: var(--color-text-muted);
+    }
+
+    /* Dashboard grid: top KPIs, then two columns */
+    .dashboard-main {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    /* Left column */
+    .col-left {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    /* Right column */
+    .col-right {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    /* Risk panel at top of right column */
+    .risk-panel {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 16px;
+    }
+
+    /* Sub-charts in panels */
+    .sub-chart {
+      height: 220px;
+    }
+
+    /* Section labels */
+    .section-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--color-text-muted);
+      margin-bottom: 10px;
+      font-weight: 600;
+    }
+
+    /* Model metrics row */
+    .metrics-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .metric-item {
+      background: var(--color-card);
+      border-radius: var(--radius-sm);
+      padding: 12px 16px;
+      text-align: center;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .metric-item .m-label {
+      font-size: 11px;
+      color: var(--color-text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .metric-item .m-value {
+      font-size: 1.5rem;
+      font-weight: 700;
+      margin-top: 4px;
+    }
+
+    .metric-item .m-value.good { color: var(--color-success); }
+    .metric-item .m-value.warn { color: var(--color-warning); }
+    .metric-item .m-value.bad { color: var(--color-danger); }
+
+    /* Quick actions */
+    .quick-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    /* System status */
+    .system-status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--color-success);
+    }
+
+    .status-dot.warning { background: var(--color-warning); }
+    .status-dot.error { background: var(--color-danger); }
+  </style>
+</head>
+<body>
+  <div class="app-container">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="logo">
+        <div class="logo-icon">&#x1F3E6;</div>
+        <span>贷款客户信息修复与智能决策系统</span>
+      </div>
+      <nav class="header-nav">
+        <a href="/dashboard/index.html" class="nav-link active">综合看板</a>
+        <a href="/dashboard/customer_profile.html" class="nav-link">客户画像</a>
+        <a href="/dashboard/risk_heatmap.html" class="nav-link">风险热力图</a>
+        <a href="/dashboard/model_explain.html" class="nav-link">模型解释</a>
+      </nav>
+      <div class="system-status">
+        <span class="status-dot" id="sysStatusDot"></span>
+        <span id="sysStatusText">系统正常</span>
+      </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <!-- Page Title -->
+      <div class="page-title">
+        <div class="title-left">
+          <div class="title-icon">&#x1F4CA;</div>
+          <div>
+            <h1 style="font-size:1.4rem;margin:0;">综合运营看板</h1>
+            <div class="last-update" id="lastUpdate">最后更新: --</div>
+          </div>
+        </div>
+        <div class="quick-actions">
+          <button class="btn btn-outline" onclick="refreshAll()">&#x21BB; 刷新数据</button>
+        </div>
+      </div>
+
+      <!-- KPI Cards Row -->
+      <div class="kpi-grid" id="kpiGrid">
+        <div class="kpi-card">
+          <div class="kpi-icon blue">&#x1F465;</div>
+          <div class="kpi-content">
+            <div class="kpi-label">总客户数</div>
+            <div class="kpi-value" id="kpiTotalCustomers">--</div>
+            <div class="kpi-trend up" id="kpiCustomerTrend">&#x25B2; --</div>
+          </div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-icon green">&#x1F4B0;</div>
+          <div class="kpi-content">
+            <div class="kpi-label">总贷款金额</div>
+            <div class="kpi-value" id="kpiTotalAmount">--</div>
+            <div class="kpi-trend up" id="kpiAmountTrend">&#x25B2; --</div>
+          </div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-icon orange">&#x26A0;</div>
+          <div class="kpi-content">
+            <div class="kpi-label">当前逾期率</div>
+            <div class="kpi-value" id="kpiOverdueRate">--</div>
+            <div class="kpi-trend down" id="kpiOverdueTrend">&#x25BC; --</div>
+          </div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-icon purple">&#x1F4C5;</div>
+          <div class="kpi-content">
+            <div class="kpi-label">当月新增客户</div>
+            <div class="kpi-value" id="kpiNewCustomers">--</div>
+            <div class="kpi-trend up" id="kpiNewTrend">&#x25B2; --</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Main Dashboard Grid -->
+      <div class="dashboard-main">
+        <!-- Left Column -->
+        <div class="col-left">
+          <!-- Section: Risk Monitoring -->
+          <div class="section-label">&#x26A0; 风险监控面板</div>
+
+          <!-- Risk trend + distribution + heatmap -->
+          <div class="risk-panel">
+            <!-- Overdue Rate Trend -->
+            <div class="card">
+              <div class="card-header">
+                <div class="card-title">
+                  <span class="card-title-icon" style="background:#e8f0fe;color:#1a73e8;">&#x1F4C8;</span>
+                  逾期率趋势
+                </div>
+              </div>
+              <div class="card-body">
+                <div id="chartOverdueTrend" class="chart-container sub-chart"></div>
+              </div>
+            </div>
+
+            <!-- Risk Distribution Pie -->
+            <div class="card">
+              <div class="card-header">
+                <div class="card-title">
+                  <span class="card-title-icon" style="background:#f3e8fd;color:#9334e6;">&#x1F4E8;</span>
+                  风险等级分布
+                </div>
+              </div>
+              <div class="card-body">
+                <div id="chartRiskPie" class="chart-container sub-chart"></div>
+              </div>
+            </div>
+
+            <!-- Area Risk Mini Bar -->
+            <div class="card">
+              <div class="card-header">
+                <div class="card-title">
+                  <span class="card-title-icon" style="background:#fef7e0;color:#f9ab00;">&#x1F4CD;</span>
+                  地区风险 Top5
+                </div>
+              </div>
+              <div class="card-body">
+                <div id="chartAreaRisk" class="chart-container sub-chart"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Customer Analysis -->
+          <div class="section-label" style="margin-top:8px;">&#x1F465; 客户分析</div>
+
+          <div class="dashboard-grid" style="grid-template-columns:1fr 1fr;gap:16px;">
+            <!-- Customer Clustering Scatter -->
+            <div class="card">
+              <div class="card-header">
+                <div class="card-title">
+                  <span class="card-title-icon" style="background:#e6f4ea;color:#34a853;">&#x1F52B;</span>
+                  客户聚类分布
+                </div>
+              </div>
+              <div class="card-body">
+                <div id="chartClusterScatter" class="chart-container" style="height:280px;"></div>
+              </div>
+            </div>
+
+            <!-- Credit Score Distribution -->
+            <div class="card">
+              <div class="card-header">
+                <div class="card-title">
+                  <span class="card-title-icon" style="background:#e8f0fe;color:#1a73e8;">&#x1F4C8;</span>
+                  信用评分分布
+                </div>
+              </div>
+              <div class="card-body">
+                <div id="chartCreditDist" class="chart-container" style="height:280px;"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Column -->
+        <div class="col-right">
+          <!-- Section: Model Performance -->
+          <div class="section-label">&#x2699; 模型性能监控</div>
+
+          <!-- Model Metrics Row -->
+          <div class="metrics-row" id="modelMetricsRow">
+            <div class="metric-item">
+              <div class="m-label">AUC</div>
+              <div class="m-value good" id="metricAuc">--</div>
+            </div>
+            <div class="metric-item">
+              <div class="m-label">精确率</div>
+              <div class="m-value good" id="metricPrecision">--</div>
+            </div>
+            <div class="metric-item">
+              <div class="m-label">召回率</div>
+              <div class="m-value good" id="metricRecall">--</div>
+            </div>
+            <div class="metric-item">
+              <div class="m-label">F1-Score</div>
+              <div class="m-value good" id="metricF1">--</div>
+            </div>
+          </div>
+
+          <!-- SHAP Feature Importance -->
+          <div class="card mb-2">
+            <div class="card-header">
+              <div class="card-title">
+                <span class="card-title-icon" style="background:#fce8e6;color:#ea4335;">&#x1F50D;</span>
+                SHAP 特征重要性 Top10
+              </div>
+              <a href="/dashboard/model_explain.html" class="btn btn-outline" style="padding:5px 12px;font-size:12px;">详情</a>
+            </div>
+            <div class="card-body">
+              <div id="chartShapImportance" class="chart-container" style="height:260px;"></div>
+            </div>
+          </div>
+
+          <!-- System Performance -->
+          <div class="card mb-2">
+            <div class="card-header">
+              <div class="card-title">
+                <span class="card-title-icon" style="background:#e6f4ea;color:#34a853;">&#x23F1;</span>
+                系统运行指标
+              </div>
+            </div>
+            <div class="card-body">
+              <div class="dashboard-grid" style="grid-template-columns:1fr 1fr 1fr;gap:16px;">
+                <div class="text-center">
+                  <div style="font-size:2rem;font-weight:700;color:#1a73e8;" id="sysApiCount">--</div>
+                  <div style="font-size:12px;color:var(--color-text-muted);">API调用总数</div>
+                </div>
+                <div class="text-center">
+                  <div style="font-size:2rem;font-weight:700;color:#34a853;" id="sysAvgLatency">--</div>
+                  <div style="font-size:12px;color:var(--color-text-muted);">平均响应(ms)</div>
+                </div>
+                <div class="text-center">
+                  <div style="font-size:2rem;font-weight:700;color:#f9ab00;" id="sysRepairRate">--</div>
+                  <div style="font-size:12px;color:var(--color-text-muted);">修复成功率</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Recent Decisions -->
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">
+                <span class="card-title-icon" style="background:#f3e8fd;color:#9334e6;">&#x1F4AC;</span>
+                最新决策记录
+              </div>
+            </div>
+            <div class="card-body" style="padding:0;">
+              <div style="overflow-x:auto;">
+                <table class="data-table" id="recentDecisionsTable">
+                  <thead>
+                    <tr>
+                      <th>客户ID</th>
+                      <th>违约概率</th>
+                      <th>信用评分</th>
+                      <th>预测额度</th>
+                      <th>欺诈概率</th>
+                      <th>时间</th>
+                    </tr>
+                  </thead>
+                  <tbody id="recentDecisionsBody">
+                    <tr><td colspan="6" class="loading">加载中...</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="/dashboard/js/api.js"></script>
+  <script src="/dashboard/js/main.js"></script>
+</body>
+</html>

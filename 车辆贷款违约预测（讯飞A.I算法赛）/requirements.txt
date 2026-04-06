@@ -1,0 +1,52 @@
+# ============================================================
+#  贷款客户信息修复与智能决策系统 — Python 依赖包
+# ============================================================
+#
+# 安装方式:
+#   pip install -r requirements.txt
+#
+# 生产环境额外安装（Kafka / Structured Streaming）:
+#   pip install kafka-python pyspark[Kafka]
+#
+# Spark + Hive (PySpark with Hive支持):
+#   pip install pyspark[hive]
+#
+# 验证安装:
+#   python -c "import pandas, numpy, sklearn, joblib, xgboost, flask, pymysql, kafka; print('All OK')"
+#
+# ============================================================
+
+# --- Data Processing ---
+pandas>=1.5.0
+numpy>=1.21.0
+
+# --- Machine Learning ---
+scikit-learn>=1.0.0
+joblib>=1.1.0
+xgboost>=1.6.0
+
+# --- Web API ---
+flask>=2.0.0
+
+# --- MySQL ---
+pymysql>=1.0.0
+
+# --- Hive (Thrift + Kerberos) ---
+pyhive[hive]>=0.6.0
+thrift>=0.16.0
+thrift-sasl>=0.4.0
+sasl>=0.3.0
+
+# --- Apache Spark (Hadoop 3, with Kafka + Hive support) ---
+pyspark[hadoop3]>=3.5.0
+
+# --- Kafka (生产/实时流处理) ---
+kafka-python>=2.0.0
+
+# --- Kafka Producer HTTP 模式 ---
+aiohttp>=3.8.0
+
+# --- Structured Streaming 额外依赖 ---
+# Spark Structured Streaming Kafka Source 不需要额外包（已含在 pyspark[Kafka] 中）
+# 补充以下用于流作业指标监控:
+prometheus-client>=0.17.0

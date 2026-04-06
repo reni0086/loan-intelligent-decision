@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>风险热力图 - 贷款客户信息修复与智能决策系统</title>
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+  <link rel="stylesheet" href="/dashboard/css/main.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <style>
+    .heatmap-layout {
+      display: grid;
+      grid-template-columns: 1fr 340px;
+      gap: 16px;
+      height: calc(100vh - 140px);
+    }
+
+    .map-section {
+      background: var(--color-card);
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-sm);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .map-header {
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--color-border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    #riskMap {
+      flex: 1;
+      min-height: 400px;
+    }
+
+    .sidebar-section {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      overflow-y: auto;
+    }
+
+    /* Heatmap legend */
+    .heat-legend {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: var(--color-text-muted);
+    }
+
+    .heat-gradient {
+      width: 120px;
+      height: 12px;
+      border-radius: 6px;
+      background: linear-gradient(to right, #34a853, #f9ab00, #ea4335);
+    }
+
+    /* Stats summary */
+    .heat-stats {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .heat-stat {
+      background: var(--color-card);
+      border-radius: var(--radius-sm);
+      padding: 12px;
+      text-align: center;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .heat-stat .hs-val {
+      font-size: 1.5rem;
+      font-weight: 700;
+    }
+
+    .heat-stat .hs-lbl {
+      font-size: 11px;
+      color: var(--color-text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    /* Warning list */
+    .warning-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      background: #fce8e6;
+      border-radius: var(--radius-sm);
+      margin-bottom: 8px;
+      border-left: 3px solid #ea4335;
+    }
+
+    .warning-item .wi-icon {
+      font-size: 18px;
+    }
+
+    .warning-item .wi-content {
+      flex: 1;
+    }
+
+    .warning-item .wi-title {
+      font-weight: 600;
+      font-size: 13px;
+      margin-bottom: 2px;
+    }
+
+    .warning-item .wi-detail {
+      font-size: 11px;
+      color: var(--color-text-muted);
+    }
+
+    /* Area ranking table */
+    .area-rank-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 0;
+      border-bottom: 1px solid var(--color-border);
+    }
+
+    .area-rank-item:last-child {
+      border-bottom: none;
+    }
+
+    .area-rank-num {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 700;
+      background: #f0f0f0;
+      color: var(--color-text-muted);
+      flex-shrink: 0;
+    }
+
+    .area-rank-num.top1 { background: #ea4335; color: white; }
+    .area-rank-num.top2 { background: #f57c00; color: white; }
+    .area-rank-num.top3 { background: #f9ab00; color: white; }
+
+    .area-rank-info {
+      flex: 1;
+    }
+
+    .area-rank-name {
+      font-weight: 500;
+      font-size: 13px;
+    }
+
+    .area-rank-detail {
+      font-size: 11px;
+      color: var(--color-text-muted);
+    }
+
+    .area-rank-rate {
+      font-weight: 700;
+      font-size: 14px;
+    }
+
+    .area-rank-rate.danger { color: #ea4335; }
+    .area-rank-rate.warning { color: #f9ab00; }
+    .area-rank-rate.success { color: #34a853; }
+
+    /* Filter tabs */
+    .filter-tabs {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 12px;
+    }
+
+    .filter-tab {
+      padding: 5px 14px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      background: #f0f0f0;
+      color: var(--color-text-muted);
+      transition: all 0.2s;
+      border: none;
+    }
+
+    .filter-tab.active {
+      background: var(--color-primary);
+      color: white;
+    }
+  </style>
+</head>
+<body>
+  <div class="app-container">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="logo">
+        <div class="logo-icon">&#x1F3E6;</div>
+        <span>贷款客户信息修复与智能决策系统</span>
+      </div>
+      <nav class="header-nav">
+        <a href="/dashboard/index.html" class="nav-link">综合看板</a>
+        <a href="/dashboard/customer_profile.html" class="nav-link">客户画像</a>
+        <a href="/dashboard/risk_heatmap.html" class="nav-link active">风险热力图</a>
+        <a href="/dashboard/model_explain.html" class="nav-link">模型解释</a>
+      </nav>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <div class="page-title" style="margin-bottom:16px;">
+        <div class="title-left">
+          <div class="title-icon">&#x1F4CD;</div>
+          <div>
+            <h1 style="font-size:1.4rem;margin:0;">地区风险热力图</h1>
+            <div class="last-update" id="lastUpdate">实时监控 · 每小时更新</div>
+          </div>
+        </div>
+        <div class="filter-tabs">
+          <button class="filter-tab active" onclick="setHeatmapFilter('all')">全部</button>
+          <button class="filter-tab" onclick="setHeatmapFilter('high')">高风险地区</button>
+          <button class="filter-tab" onclick="setHeatmapFilter('medium')">中风险地区</button>
+          <button class="filter-tab" onclick="setHeatmapFilter('low')">低风险地区</button>
+        </div>
+      </div>
+
+      <div class="heatmap-layout">
+        <!-- Map Section -->
+        <div class="map-section">
+          <div class="map-header">
+            <div class="card-title">
+              <span class="card-title-icon" style="background:#fce8e6;color:#ea4335;">&#x1F30D;</span>
+              全国风险热力分布
+            </div>
+            <div class="heat-legend">
+              <span>低风险</span>
+              <div class="heat-gradient"></div>
+              <span>高风险</span>
+            </div>
+          </div>
+          <div id="riskMap"></div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="sidebar-section">
+          <!-- Summary Stats -->
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">
+                <span class="card-title-icon" style="background:#e8f0fe;color:#1a73e8;">&#x1F4CA;</span>
+                风险统计概览
+              </div>
+            </div>
+            <div class="card-body">
+              <div class="heat-stats">
+                <div class="heat-stat">
+                  <div class="hs-val text-danger" id="statHighRisk">15</div>
+                  <div class="hs-lbl">高风险地区</div>
+                </div>
+                <div class="heat-stat">
+                  <div class="hs-val text-warning" id="statMedRisk">32</div>
+                  <div class="hs-lbl">中风险地区</div>
+                </div>
+                <div class="heat-stat">
+                  <div class="hs-val text-success" id="statLowRisk">48</div>
+                  <div class="hs-lbl">低风险地区</div>
+                </div>
+                <div class="heat-stat">
+                  <div class="hs-val" id="statAvgRate" style="color:#1a73e8;">5.8%</div>
+                  <div class="hs-lbl">平均违约率</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- High Risk Warning List -->
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">
+                <span class="card-title-icon" style="background:#fce8e6;color:#ea4335;">&#x26A0;</span>
+                高风险预警 (Top5)
+              </div>
+            </div>
+            <div class="card-body" id="warningList">
+              <div class="warning-item">
+                <div class="wi-icon">&#x26A0;</div>
+                <div class="wi-content">
+                  <div class="wi-title">华西区-B区</div>
+                  <div class="wi-detail">违约率 12.3% · 较上月 +2.1%</div>
+                </div>
+              </div>
+              <div class="warning-item">
+                <div class="wi-icon">&#x26A0;</div>
+                <div class="wi-content">
+                  <div class="wi-title">华北区-C区</div>
+                  <div class="wi-detail">违约率 10.8% · 较上月 +1.5%</div>
+                </div>
+              </div>
+              <div class="warning-item">
+                <div class="wi-icon">&#x26A0;</div>
+                <div class="wi-content">
+                  <div class="wi-title">华中区-D区</div>
+                  <div class="wi-detail">违约率 9.6% · 较上月 +0.8%</div>
+                </div>
+              </div>
+              <div class="warning-item" style="background:#fef7e0;border-left-color:#f9ab00;">
+                <div class="wi-icon" style="color:#f9ab00;">&#x1F6A8;</div>
+                <div class="wi-content">
+                  <div class="wi-title">华南区-E区</div>
+                  <div class="wi-detail">违约率 8.2% · 较上月 +0.3%</div>
+                </div>
+              </div>
+              <div class="warning-item" style="background:#fef7e0;border-left-color:#f9ab00;">
+                <div class="wi-icon" style="color:#f9ab00;">&#x1F6A8;</div>
+                <div class="wi-content">
+                  <div class="wi-title">华东区-F区</div>
+                  <div class="wi-detail">违约率 7.5% · 需关注</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Area Ranking -->
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">
+                <span class="card-title-icon" style="background:#f3e8fd;color:#9334e6;">&#x1F4C8;</span>
+                地区违约率排行
+              </div>
+            </div>
+            <div class="card-body" id="areaRanking">
+              <div class="area-rank-item">
+                <div class="area-rank-num top1">1</div>
+                <div class="area-rank-info">
+                  <div class="area-rank-name">华西区-B区</div>
+                  <div class="area-rank-detail">高风险 · 需重点关注</div>
+                </div>
+                <div class="area-rank-rate danger">12.3%</div>
+              </div>
+              <div class="area-rank-item">
+                <div class="area-rank-num top2">2</div>
+                <div class="area-rank-info">
+                  <div class="area-rank-name">华北区-C区</div>
+                  <div class="area-rank-detail">高风险 · 需重点关注</div>
+                </div>
+                <div class="area-rank-rate danger">10.8%</div>
+              </div>
+              <div class="area-rank-item">
+                <div class="area-rank-num top3">3</div>
+                <div class="area-rank-info">
+                  <div class="area-rank-name">华中区-D区</div>
+                  <div class="area-rank-detail">中高风险</div>
+                </div>
+                <div class="area-rank-rate warning">9.6%</div>
+              </div>
+              <div class="area-rank-item">
+                <div class="area-rank-num">4</div>
+                <div class="area-rank-info">
+                  <div class="area-rank-name">华南区-E区</div>
+                  <div class="area-rank-detail">中等风险</div>
+                </div>
+                <div class="area-rank-rate warning">8.2%</div>
+              </div>
+              <div class="area-rank-item">
+                <div class="area-rank-num">5</div>
+                <div class="area-rank-info">
+                  <div class="area-rank-name">华东区-F区</div>
+                  <div class="area-rank-detail">中等风险</div>
+                </div>
+                <div class="area-rank-rate warning">7.5%</div>
+              </div>
+              <div class="area-rank-item">
+                <div class="area-rank-num">6</div>
+                <div class="area-rank-info">
+                  <div class="area-rank-name">华东区-A区</div>
+                  <div class="area-rank-detail">低风险</div>
+                </div>
+                <div class="area-rank-rate success">3.8%</div>
+              </div>
+              <div class="area-rank-item">
+                <div class="area-rank-num">7</div>
+                <div class="area-rank-info">
+                  <div class="area-rank-name">华南区-G区</div>
+                  <div class="area-rank-detail">低风险</div>
+                </div>
+                <div class="area-rank-rate success">3.2%</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="/dashboard/js/api.js"></script>
+  <script src="/dashboard/js/risk_heatmap.js"></script>
+</body>
+</html>

@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>客户画像 - 贷款客户信息修复与智能决策系统</title>
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+  <link rel="stylesheet" href="/dashboard/css/main.css" />
+  <style>
+    /* Customer Profile Page */
+    .search-panel {
+      background: var(--color-card);
+      border-radius: var(--radius-md);
+      padding: 20px;
+      margin-bottom: 20px;
+      box-shadow: var(--shadow-sm);
+      display: flex;
+      gap: 16px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .search-panel .form-input {
+      max-width: 280px;
+      flex: 1;
+    }
+
+    .profile-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    .profile-left {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .profile-right {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    /* Customer basic info card */
+    .customer-info-card {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 0;
+    }
+
+    .customer-avatar {
+      width: 120px;
+      background: linear-gradient(135deg, #1a73e8 0%, #0d47a1 100%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 40px;
+      padding: 20px;
+    }
+
+    .customer-avatar .avatar-icon {
+      font-size: 48px;
+      margin-bottom: 8px;
+    }
+
+    .customer-avatar .avatar-id {
+      font-size: 11px;
+      opacity: 0.8;
+    }
+
+    .customer-details {
+      padding: 16px 20px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .customer-detail-row {
+      display: flex;
+      gap: 12px;
+      font-size: 13px;
+    }
+
+    .customer-detail-label {
+      color: var(--color-text-muted);
+      min-width: 80px;
+    }
+
+    .customer-detail-value {
+      font-weight: 500;
+    }
+
+    /* Radar chart legend */
+    .radar-legend {
+      display: flex;
+      justify-content: center;
+      gap: 20px;
+      margin-top: 8px;
+      flex-wrap: wrap;
+    }
+
+    .radar-legend-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      color: var(--color-text-muted);
+    }
+
+    .radar-legend-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+
+    /* Similar customer comparison table */
+    .similar-table th:first-child {
+      background: #f0f0f0;
+    }
+
+    .similar-table td:first-child {
+      background: #f8f9fa;
+      font-weight: 600;
+      color: var(--color-primary);
+    }
+
+    .similar-target {
+      background: #e8f0fe !important;
+    }
+
+    /* Decision result panel */
+    .decision-result {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+    }
+
+    .decision-item {
+      text-align: center;
+      padding: 14px;
+      border-radius: var(--radius-sm);
+      background: #f8f9fa;
+    }
+
+    .decision-item .d-label {
+      font-size: 11px;
+      color: var(--color-text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 6px;
+    }
+
+    .decision-item .d-value {
+      font-size: 1.4rem;
+      font-weight: 700;
+    }
+
+    /* Timeline events */
+    .timeline-container {
+      position: relative;
+      padding: 0 0 0 30px;
+    }
+
+    .timeline-line {
+      position: absolute;
+      left: 10px;
+      top: 0;
+      bottom: 0;
+      width: 2px;
+      background: var(--color-border);
+    }
+
+    .timeline-event {
+      position: relative;
+      padding: 0 0 16px 20px;
+    }
+
+    .timeline-event::before {
+      content: '';
+      position: absolute;
+      left: -24px;
+      top: 4px;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      border: 2px solid white;
+      box-shadow: 0 0 0 2px currentColor;
+    }
+
+    .timeline-event.loan-apply::before { background: #1a73e8; color: #1a73e8; }
+    .timeline-event.loan-disbursed::before { background: #34a853; color: #34a853; }
+    .timeline-event.ontime-repay::before { background: #34a853; color: #34a853; }
+    .timeline-event.overdue::before { background: #f9ab00; color: #f9ab00; }
+    .timeline-event.default::before { background: #ea4335; color: #ea4335; }
+    .timeline-event.closed::before { background: #9334e6; color: #9334e6; }
+
+    .timeline-event .te-date {
+      font-size: 11px;
+      color: var(--color-text-muted);
+      margin-bottom: 2px;
+    }
+
+    .timeline-event .te-title {
+      font-weight: 600;
+      font-size: 13px;
+      margin-bottom: 2px;
+    }
+
+    .timeline-event .te-detail {
+      font-size: 12px;
+      color: var(--color-text-muted);
+    }
+
+    .no-profile {
+      text-align: center;
+      padding: 80px 40px;
+      color: var(--color-text-muted);
+    }
+
+    .no-profile-icon {
+      font-size: 64px;
+      margin-bottom: 20px;
+      opacity: 0.4;
+    }
+
+    .no-profile h3 {
+      margin-bottom: 8px;
+      color: var(--color-text);
+    }
+  </style>
+</head>
+<body>
+  <div class="app-container">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="logo">
+        <div class="logo-icon">&#x1F3E6;</div>
+        <span>贷款客户信息修复与智能决策系统</span>
+      </div>
+      <nav class="header-nav">
+        <a href="/dashboard/index.html" class="nav-link">综合看板</a>
+        <a href="/dashboard/customer_profile.html" class="nav-link active">客户画像</a>
+        <a href="/dashboard/risk_heatmap.html" class="nav-link">风险热力图</a>
+        <a href="/dashboard/model_explain.html" class="nav-link">模型解释</a>
+      </nav>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <!-- Search Panel -->
+      <div class="search-panel">
+        <div style="display:flex;align-items:center;gap:8px;flex:1;">
+          <span style="font-size:20px;">&#x1F50D;</span>
+          <span style="font-weight:600;font-size:1.1rem;">客户画像查询</span>
+        </div>
+        <input type="text" class="form-input" id="customerIdInput" placeholder="输入客户ID（如: 100001）" />
+        <button class="btn btn-primary" onclick="searchCustomer()">&#x1F50D; 查询</button>
+        <button class="btn btn-outline" onclick="loadRandomCustomer()">&#x1F3B2; 随机客户</button>
+      </div>
+
+      <!-- Profile Content (hidden until search) -->
+      <div id="profileContent" style="display:none;">
+        <!-- Customer Basic Info -->
+        <div class="card mb-2">
+          <div class="card-header">
+            <div class="card-title">
+              <span class="card-title-icon" style="background:#e8f0fe;color:#1a73e8;">&#x1F464;</span>
+              客户基本信息
+            </div>
+          </div>
+          <div class="card-body" style="padding:0;">
+            <div class="customer-info-card" id="customerInfoCard">
+              <!-- Filled by JS -->
+            </div>
+          </div>
+        </div>
+
+        <!-- Profile Grid -->
+        <div class="profile-grid">
+          <!-- Left Column -->
+          <div class="profile-left">
+            <!-- Radar Chart: 5-Dimension Profile -->
+            <div class="card">
+              <div class="card-header">
+                <div class="card-title">
+                  <span class="card-title-icon" style="background:#e6f4ea;color:#34a853;">&#x1F52B;</span>
+                  客户雷达图画像
+                </div>
+              </div>
+              <div class="card-body">
+                <div id="chartRadar" class="chart-container" style="height:320px;"></div>
+                <div class="radar-legend">
+                  <div class="radar-legend-item">
+                    <div class="radar-legend-dot" style="background:#1a73e8;"></div>
+                    <span>当前客户</span>
+                  </div>
+                  <div class="radar-legend-item">
+                    <div class="radar-legend-dot" style="background:rgba(26,115,232,0.3);border:1px dashed #1a73e8;"></div>
+                    <span>参考平均值</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Loan Behavior Timeline -->
+            <div class="card">
+              <div class="card-header">
+                <div class="card-title">
+                  <span class="card-title-icon" style="background:#f3e8fd;color:#9334e6;">&#x1F4C5;</span>
+                  贷款行为时间轴
+                </div>
+              </div>
+              <div class="card-body">
+                <div id="timelineContainer" class="timeline-container" style="height:320px;overflow-y:auto;">
+                  <!-- Filled by JS -->
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right Column -->
+          <div class="profile-right">
+            <!-- Decision Result -->
+            <div class="card">
+              <div class="card-header">
+                <div class="card-title">
+                  <span class="card-title-icon" style="background:#fce8e6;color:#ea4335;">&#x2699;</span>
+                  智能决策结果
+                </div>
+              </div>
+              <div class="card-body">
+                <div class="decision-result" id="decisionResult">
+                  <!-- Filled by JS -->
+                </div>
+              </div>
+            </div>
+
+            <!-- SHAP Explanation -->
+            <div class="card">
+              <div class="card-header">
+                <div class="card-title">
+                  <span class="card-title-icon" style="background:#fef7e0;color:#f9ab00;">&#x1F4A8;</span>
+                  预测解释 (Force Plot)
+                </div>
+              </div>
+              <div class="card-body">
+                <div id="chartShapForce" class="chart-container" style="height:200px;"></div>
+                <div id="shapExplanation" style="font-size:12px;color:var(--color-text-muted);margin-top:8px;line-height:1.6;">
+                  <!-- Filled by JS -->
+                </div>
+              </div>
+            </div>
+
+            <!-- Similar Customer Comparison -->
+            <div class="card">
+              <div class="card-header">
+                <div class="card-title">
+                  <span class="card-title-icon" style="background:#f3e8fd;color:#9334e6;">&#x1F465;</span>
+                  相似客户对比 (Top 5)
+                </div>
+              </div>
+              <div class="card-body" style="padding:0;">
+                <div style="overflow-x:auto;">
+                  <table class="data-table similar-table" id="similarTable">
+                    <thead>
+                      <tr>
+                        <th>客户ID</th>
+                        <th>信用评分</th>
+                        <th>贷款金额</th>
+                        <th>逾期次数</th>
+                        <th>实际表现</th>
+                        <th>相似度</th>
+                      </tr>
+                    </thead>
+                    <tbody id="similarTableBody">
+                      <!-- Filled by JS -->
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+              <div class="card-footer" style="font-size:12px;color:var(--color-text-muted);">
+                &#x26A0; 相似度基于特征向量余弦距离计算，供参考决策
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- No Profile State -->
+      <div id="noProfileState" class="no-profile">
+        <div class="no-profile-icon">&#x1F50D;</div>
+        <h3>请输入客户ID进行查询</h3>
+        <p>输入客户ID后可查看该客户的完整画像、违约预测、信用评分和相似客户对比</p>
+      </div>
+    </main>
+  </div>
+
+  <script src="/dashboard/js/api.js"></script>
+  <script src="/dashboard/js/customer_profile.js"></script>
+</body>
+</html>
