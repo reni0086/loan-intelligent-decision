@@ -49,6 +49,6 @@ echo "[mysql-python] install python and venv..."
 sudo apt-get install -y python3 python3-pip python3-venv
 sudo python3 -m venv "${PYTHON_VENV_DIR}"
 sudo "${PYTHON_VENV_DIR}/bin/pip" install --upgrade pip
-sudo "${PYTHON_VENV_DIR}/bin/pip" install flask pandas numpy scikit-learn xgboost pymysql pyhive thrift thrift-sasl sasl pyspark
+sudo "${PYTHON_VENV_DIR}/bin/pip" install flask pandas numpy scikit-learn xgboost pymysql pyhive thrift thrift-sasl pyspark
 
 echo "[mysql-python] done."
