@@ -31,6 +31,18 @@ _hive_url() {
 
 echo "[bigdata] Apache 下载镜像: ${APACHE_MIRROR}"
 
+# 大文件下载：在非 TTY（如 sudo 管道）下 --show-progress 常不显示；用 bar:force 强制进度条。
+# 另开终端观察: watch -n2 'ls -lh /tmp/hadoop-*.tar.gz /tmp/spark-*.tgz /tmp/apache-hive-*.tar.gz 2>/dev/null'
+_download() {
+  local label="$1" url="$2" outfile="$3"
+  echo ""
+  echo "[bigdata] 下载 ${label}"
+  echo "        ${url}"
+  echo "[bigdata] 保存到 /tmp/${outfile}（约数分钟～十几分钟属正常；无进度时可另开终端: watch -n2 ls -lh /tmp/${outfile}）"
+  # -q + --show-progress + bar:force：非 TTY/sudo 下也能尽量显示进度条（仅 GNU wget 1.16+）
+  wget -q --show-progress --progress=bar:force:noscroll --continue --timeout=60 --tries=30 -O "${outfile}" "${url}"
+}
+
 echo "[bigdata] install java..."
 sudo apt-get update -y
 sudo apt-get install -y "${JAVA_PACKAGE}"
@@ -39,21 +51,15 @@ echo "[bigdata] create install dir..."
 sudo mkdir -p "${INSTALL_DIR}"
 cd /tmp
 
-echo "[bigdata] download hadoop... (~700MB，镜像慢可 Ctrl+C 后换 APACHE_MIRROR 重试)"
-wget --continue --timeout=60 --tries=30 --show-progress -O "hadoop-${HADOOP_VERSION}.tar.gz" \
-  "$(_hadoop_url)"
+_download "Hadoop ${HADOOP_VERSION} (~700MB)" "$(_hadoop_url)" "hadoop-${HADOOP_VERSION}.tar.gz"
 sudo tar -xzf "hadoop-${HADOOP_VERSION}.tar.gz" -C "${INSTALL_DIR}"
 sudo ln -sfn "${INSTALL_DIR}/hadoop-${HADOOP_VERSION}" "${INSTALL_DIR}/hadoop"
 
-echo "[bigdata] download spark... (~380MB)"
-wget --continue --timeout=60 --tries=30 --show-progress -O "spark-${SPARK_VERSION}-bin-hadoop3.tgz" \
-  "$(_spark_url)"
+_download "Spark ${SPARK_VERSION} (~380MB)" "$(_spark_url)" "spark-${SPARK_VERSION}-bin-hadoop3.tgz"
 sudo tar -xzf "spark-${SPARK_VERSION}-bin-hadoop3.tgz" -C "${INSTALL_DIR}"
 sudo ln -sfn "${INSTALL_DIR}/spark-${SPARK_VERSION}-bin-hadoop3" "${INSTALL_DIR}/spark"
 
-echo "[bigdata] download hive... (~310MB)"
-wget --continue --timeout=60 --tries=30 --show-progress -O "apache-hive-${HIVE_VERSION}-bin.tar.gz" \
-  "$(_hive_url)"
+_download "Hive ${HIVE_VERSION} (~310MB)" "$(_hive_url)" "apache-hive-${HIVE_VERSION}-bin.tar.gz"
 sudo tar -xzf "apache-hive-${HIVE_VERSION}-bin.tar.gz" -C "${INSTALL_DIR}"
 sudo ln -sfn "${INSTALL_DIR}/apache-hive-${HIVE_VERSION}-bin" "${INSTALL_DIR}/hive"
 
