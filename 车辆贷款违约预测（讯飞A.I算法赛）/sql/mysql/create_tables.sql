@@ -109,8 +109,8 @@ CREATE TABLE IF NOT EXISTS model_registry (
   -- 性能指标
   auc                     DOUBLE COMMENT 'AUC（分类模型）',
   accuracy                DOUBLE,
-  precision               DOUBLE,
-  recall                  DOUBLE,
+  precision_score         DOUBLE COMMENT '查准率/精确率',
+  recall_score            DOUBLE COMMENT '查全率/召回率',
   f1                      DOUBLE,
   rmse                    DOUBLE COMMENT 'RMSE（回归模型）',
   mae                     DOUBLE,
