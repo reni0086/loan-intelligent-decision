@@ -7,6 +7,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+from src.auth import init_default_user
 from src.config import ProjectConfig
 
 
@@ -131,6 +132,9 @@ def initialize_sqlite_schema(cfg: ProjectConfig) -> None:
     )
     conn.commit()
     conn.close()
+
+    # 初始化默认管理员账号（如果尚无用户）
+    init_default_user(cfg)
 
 
 def load_structured_tables(cfg: ProjectConfig, cleaned_path: Path) -> None:

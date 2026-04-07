@@ -288,7 +288,34 @@ curl -X POST http://127.0.0.1:5000/predict/full ^
 
 ---
 
-## 六、验收清单
+## 六、登录说明
+
+### 6.1 访问方式
+
+启动服务后，在浏览器打开 http://127.0.0.1:5000/login 进入登录页面。
+
+| 字段 | 值 |
+|------|-----|
+| **用户名** | `admin` |
+| **密码** | `admin123` |
+
+> 如果 SQLite 数据库已有用户（跑过 `run_ingest_storage.py`），默认管理员已自动创建，无需手动注册。
+
+### 6.2 登出
+
+访问 http://127.0.0.1:5000/logout 即可登出并返回登录页。
+
+### 6.3 权限说明
+
+| 角色 | 说明 |
+|------|------|
+| `admin` | 管理员，可访问全部功能 |
+| `analyst` | 分析师，可访问预测/统计 |
+| `viewer` | 查看者，仅查看看板 |
+
+---
+
+## 七、验收清单
 
 完成全部 6 步后，对照以下清单逐项检查：
 
@@ -301,9 +328,13 @@ curl -X POST http://127.0.0.1:5000/predict/full ^
 | 5 | `python run_decision_suite.py` 执行成功 | 终端输出 `completed`，无报错 |
 | 6 | `artifacts/model_registry.json` 存在 | 含 `default`、`fraud`、`limit` 三模型 |
 | 7 | `python app.py` 启动成功 | 监听 http://127.0.0.1:5000 |
-| 8 | `GET /health` 返回 200 | JSON 包含 `status: ok` |
-| 9 | `GET /stats/overview` 返回 200 | 含 `total_customers`、金额等字段 |
-| 10 | 看板页面可访问 | http://127.0.0.1:5000/dashboard/index.html 正常加载 |
+| 8 | 访问 `/login` 显示登录页 | 深色主题登录页面，正常渲染 |
+| 9 | 使用 admin/admin123 登录成功 | 跳转到看板首页，无报错 |
+| 10 | `GET /api/auth/status` 返回认证状态 | JSON 含 `authenticated: true` |
+| 11 | 未登录访问 `/dashboard/` 被重定向 | 返回 `/login` 页面 |
+| 12 | `GET /health` 返回 200 | JSON 包含 `status: ok` |
+| 13 | `GET /stats/overview` 返回 200 | 含 `realtime_events`、`realtime_decisions` |
+| 14 | 看板页面可访问（登录后） | http://127.0.0.1:5000/dashboard/index.html 正常加载 |
 
 ---
 

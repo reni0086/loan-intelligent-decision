@@ -27,6 +27,7 @@ xgboost>=1.6.0
 
 # --- Web API ---
 flask>=2.0.0
+flask-login>=0.6.0
 
 # --- MySQL ---
 pymysql>=1.0.0

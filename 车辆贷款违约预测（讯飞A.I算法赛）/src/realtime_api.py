@@ -1,15 +1,21 @@
 import json
+import secrets
 import sqlite3
 import time
 from datetime import datetime
+from functools import wraps
 from pathlib import Path
 
 import joblib
 import numpy as np
 import pandas as pd
-from flask import Flask, jsonify, request, send_from_directory
+from flask import (Blueprint, Flask, jsonify, redirect,
+                   render_template_string, request,
+                   send_from_directory, session)
+from flask_login import login_required, login_user, logout_user
 
 from features_v2 import add_features
+from src.auth import AuthUser, setup_login_manager, validate_login
 from src.config import ProjectConfig, get_config
 from src.decision import score_from_probability
 from src.ingest_storage import consume_queue_once
@@ -169,13 +175,48 @@ def run_micro_batch_worker(
 
 def create_app(cfg: ProjectConfig | None = None) -> Flask:
     app = Flask(__name__)
+    app.secret_key = secrets.token_hex(32)
     app_cfg = cfg or get_config()
+
+    # 初始化登录管理器
+    setup_login_manager(app, app_cfg)
+
+    # ---- 登录 / 登出 路由 ----
+    @app.route("/login", methods=["GET", "POST"])
+    def login_page():
+        if request.method == "POST":
+            username = (request.form.get("username") or "").strip()
+            password = request.form.get("password", "")
+            user = validate_login(app_cfg, username, password)
+            if user:
+                login_user(user)
+                next_url = request.args.get("next", "/dashboard/index.html")
+                return redirect(next_url)
+            return render_template_string(_LOGIN_TEMPLATE, error="用户名或密码错误"), 401
+        return render_template_string(_LOGIN_TEMPLATE, error=None)
+
+    @app.route("/logout")
+    def logout():
+        logout_user()
+        return redirect("/login")
+
+    @app.route("/api/auth/status")
+    def auth_status():
+        from flask_login import current_user
+        if current_user.is_authenticated:
+            return jsonify({
+                "authenticated": True,
+                "username": current_user.username,
+                "role": current_user.role,
+            })
+        return jsonify({"authenticated": False})
 
     @app.get("/health")
     def health():
         return jsonify({"status": "ok", "time": datetime.now().isoformat(timespec="seconds")})
 
     @app.post("/predict/default")
+    @login_required
     def predict_default():
         data = request.get_json(force=True)
         records = data if isinstance(data, list) else [data]
@@ -183,6 +224,7 @@ def create_app(cfg: ProjectConfig | None = None) -> Flask:
         return jsonify(result)
 
     @app.post("/predict/fraud")
+    @login_required
     def predict_fraud():
         data = request.get_json(force=True)
         records = data if isinstance(data, list) else [data]
@@ -190,6 +232,7 @@ def create_app(cfg: ProjectConfig | None = None) -> Flask:
         return jsonify(result)
 
     @app.post("/predict/limit")
+    @login_required
     def predict_limit():
         data = request.get_json(force=True)
         records = data if isinstance(data, list) else [data]
@@ -197,6 +240,7 @@ def create_app(cfg: ProjectConfig | None = None) -> Flask:
         return jsonify(result)
 
     @app.post("/score/credit")
+    @login_required
     def score_credit():
         data = request.get_json(force=True)
         probs = np.array(data["default_probability"], dtype=float)
@@ -204,8 +248,8 @@ def create_app(cfg: ProjectConfig | None = None) -> Flask:
         return jsonify({"credit_score": scores.tolist()})
 
     @app.post("/repair/record")
+    @login_required
     def repair_record():
-        # Lightweight repair endpoint using median defaults.
         data = request.get_json(force=True)
         rec = data.copy()
         defaults = {
@@ -220,6 +264,7 @@ def create_app(cfg: ProjectConfig | None = None) -> Flask:
         return jsonify(rec)
 
     @app.get("/stats/overview")
+    @login_required
     def stats_overview():
         conn = sqlite3.connect(app_cfg.sqlite_path)
         try:
@@ -234,6 +279,7 @@ def create_app(cfg: ProjectConfig | None = None) -> Flask:
         return jsonify({"realtime_events": int(events), "realtime_decisions": int(decisions)})
 
     @app.get("/stats/risk_daily")
+    @login_required
     def stats_risk_daily():
         conn = sqlite3.connect(app_cfg.sqlite_path)
         try:
@@ -260,14 +306,126 @@ def create_app(cfg: ProjectConfig | None = None) -> Flask:
         return jsonify(rows)
 
     @app.get("/")
+    @login_required
     def dashboard():
         dashboard_dir = app_cfg.base_dir / "dashboard"
         return send_from_directory(dashboard_dir, "index.html")
 
     @app.get("/dashboard/<path:filename>")
+    @login_required
     def dashboard_assets(filename: str):
         dashboard_dir = app_cfg.base_dir / "dashboard"
         return send_from_directory(dashboard_dir, filename)
 
     return app
 
+
+# ---------------------------------------------------------------------------
+# 内嵌登录页面模板（无需额外文件）
+# ---------------------------------------------------------------------------
+_LOGIN_TEMPLATE = """<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>贷款智能决策系统 — 登录</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: #0f1628;
+      display: flex; align-items: center; justify-content: center;
+      min-height: 100vh;
+    }
+    .login-box {
+      background: #1a2238;
+      border: 1px solid #2a3858;
+      border-radius: 16px;
+      padding: 48px 40px;
+      width: 400px;
+      box-shadow: 0 20px 60px rgba(0,0,0,.5);
+    }
+    .login-box h2 {
+      color: #e8f0fe;
+      text-align: center;
+      margin-bottom: 8px;
+      font-size: 22px; font-weight: 600;
+    }
+    .login-box p {
+      color: #8a9cc2;
+      text-align: center;
+      margin-bottom: 32px;
+      font-size: 13px;
+    }
+    .form-group { margin-bottom: 20px; }
+    .form-group label {
+      display: block;
+      color: #8a9cc2;
+      font-size: 13px;
+      margin-bottom: 6px;
+    }
+    .form-group input {
+      width: 100%;
+      padding: 10px 14px;
+      background: #0f1628;
+      border: 1px solid #2a3858;
+      border-radius: 8px;
+      color: #e8f0fe;
+      font-size: 14px;
+      outline: none;
+      transition: border-color .2s;
+    }
+    .form-group input:focus { border-color: #4a7dff; }
+    .btn-login {
+      width: 100%;
+      padding: 12px;
+      background: #4a7dff;
+      border: none;
+      border-radius: 8px;
+      color: #fff;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background .2s;
+    }
+    .btn-login:hover { background: #3a6cf0; }
+    .error-msg {
+      background: rgba(255,80,80,.15);
+      border: 1px solid rgba(255,80,80,.4);
+      border-radius: 8px;
+      color: #ff7070;
+      padding: 10px 14px;
+      font-size: 13px;
+      margin-bottom: 20px;
+    }
+    .hint {
+      margin-top: 24px;
+      text-align: center;
+      font-size: 12px;
+      color: #4a5880;
+    }
+    .hint span { color: #4a7dff; }
+  </style>
+</head>
+<body>
+  <div class="login-box">
+    <h2>贷款智能决策系统</h2>
+    <p>请输入账号密码登录</p>
+    {% if error %}
+    <div class="error-msg">{{ error }}</div>
+    {% endif %}
+    <form method="post" autocomplete="off">
+      <div class="form-group">
+        <label>用户名</label>
+        <input type="text" name="username" placeholder="请输入用户名" required autofocus>
+      </div>
+      <div class="form-group">
+        <label>密码</label>
+        <input type="password" name="password" placeholder="请输入密码" required>
+      </div>
+      <button type="submit" class="btn-login">登 录</button>
+    </form>
+    <p class="hint">默认账号: <span>admin</span> / <span>admin123</span></p>
+  </div>
+</body>
+</html>"""
