@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>数据湖状态 - HDFS</title>
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+  <link rel="stylesheet" href="/dashboard/css/main.css" />
+  <style>
+    .page-title {
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .page-title .title-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .page-title .title-icon {
+      width: 40px;
+      height: 40px;
+      background: linear-gradient(135deg, #f57c00, #e65100);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 20px;
+    }
+
+    .last-update {
+      font-size: 12px;
+      color: var(--color-text-muted);
+    }
+
+    /* HDFS Path Breadcrumb */
+    .path-breadcrumb {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 16px;
+      background: var(--color-card);
+      border-radius: var(--radius-sm);
+      margin-bottom: 16px;
+      font-size: 13px;
+      overflow-x: auto;
+    }
+
+    .path-breadcrumb .crumb {
+      color: var(--color-text-muted);
+      text-decoration: none;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .path-breadcrumb .crumb:hover {
+      color: #1a73e8;
+    }
+
+    .path-breadcrumb .crumb.active {
+      color: var(--color-text);
+      font-weight: 600;
+    }
+
+    .path-breadcrumb .separator {
+      color: var(--color-border);
+    }
+
+    /* HDFS File Table */
+    .hdfs-table-container {
+      background: var(--color-card);
+      border-radius: var(--radius-sm);
+      box-shadow: var(--shadow-sm);
+      overflow: hidden;
+    }
+
+    .hdfs-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .hdfs-table thead {
+      background: #f8f9fa;
+    }
+
+    .hdfs-table th {
+      padding: 12px 16px;
+      text-align: left;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--color-text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      border-bottom: 1px solid var(--color-border);
+    }
+
+    .hdfs-table td {
+      padding: 12px 16px;
+      font-size: 13px;
+      border-bottom: 1px solid var(--color-border);
+    }
+
+    .hdfs-table tbody tr:hover {
+      background: #f7f9fc;
+    }
+
+    .hdfs-table tbody tr:last-child td {
+      border-bottom: none;
+    }
+
+    /* File/Folder Icon */
+    .item-icon {
+      font-size: 18px;
+      margin-right: 8px;
+    }
+
+    .item-name {
+      color: #1a73e8;
+      cursor: pointer;
+      font-weight: 500;
+    }
+
+    .item-name:hover {
+      text-decoration: underline;
+    }
+
+    .item-name.directory {
+      color: #f9ab00;
+    }
+
+    /* File Size */
+    .file-size {
+      font-family: monospace;
+      color: var(--color-text-muted);
+    }
+
+    /* Permissions Badge */
+    .perm-badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-family: monospace;
+    }
+
+    .perm-badge.rw {
+      background: #e6f4ea;
+      color: #34a853;
+    }
+
+    .perm-badge.ro {
+      background: #fce8e6;
+      color: #ea4335;
+    }
+
+    /* Summary Cards */
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+
+    .summary-card {
+      background: var(--color-card);
+      border-radius: var(--radius-sm);
+      padding: 16px;
+      box-shadow: var(--shadow-sm);
+      text-align: center;
+    }
+
+    .summary-card .icon {
+      font-size: 28px;
+      margin-bottom: 8px;
+    }
+
+    .summary-card .value {
+      font-size: 1.8rem;
+      font-weight: 700;
+      color: var(--color-text);
+    }
+
+    .summary-card .label {
+      font-size: 12px;
+      color: var(--color-text-muted);
+      margin-top: 4px;
+    }
+
+    .summary-card.raw .icon { color: #ea4335; }
+    .summary-card.cleaned .icon { color: #34a853; }
+    .summary-card.featured .icon { color: #1a73e8; }
+    .summary-card.model .icon { color: #9334e6; }
+
+    /* Storage Chart */
+    .storage-chart-container {
+      background: var(--color-card);
+      border-radius: var(--radius-sm);
+      padding: 16px;
+      box-shadow: var(--shadow-sm);
+      margin-bottom: 16px;
+    }
+
+    /* Quick Actions */
+    .quick-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .btn-refresh {
+      background: #f57c00;
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .btn-refresh:hover {
+      background: #e65100;
+    }
+
+    /* Loading State */
+    .loading-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--color-text-muted);
+    }
+
+    .loading-spinner {
+      font-size: 32px;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
+    /* Error State */
+    .error-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--color-danger);
+    }
+
+    .error-state .icon {
+      font-size: 48px;
+      margin-bottom: 16px;
+    }
+
+    /* Hadoop Service Status */
+    .service-status {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+
+    .service-badge {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 16px;
+      background: var(--color-card);
+      border-radius: var(--radius-sm);
+      font-size: 13px;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .service-badge .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+
+    .service-badge .dot.running { background: #34a853; }
+    .service-badge .dot.stopped { background: #ea4335; }
+    .service-badge .dot.unknown { background: #9e9e9e; }
+
+    /* Empty Directory */
+    .empty-dir {
+      text-align: center;
+      padding: 40px 20px;
+      color: var(--color-text-muted);
+    }
+
+    .empty-dir .icon {
+      font-size: 48px;
+      margin-bottom: 12px;
+      opacity: 0.5;
+    }
+  </style>
+</head>
+<body>
+  <div class="app-container">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="logo">
+        <div class="logo-icon">&#x1F3E6;</div>
+        <span>贷款客户信息修复与智能决策系统</span>
+      </div>
+      <nav class="header-nav">
+        <a href="/dashboard/index.html" class="nav-link">综合看板</a>
+        <a href="/dashboard/customer_profile.html" class="nav-link">客户画像</a>
+        <a href="/dashboard/risk_heatmap.html" class="nav-link">风险热力图</a>
+        <a href="/dashboard/model_explain.html" class="nav-link">模型解释</a>
+        <a href="/dashboard/data_lake.html" class="nav-link active">数据湖状态</a>
+      </nav>
+      <div class="system-status">
+        <span class="status-dot" id="sysStatusDot"></span>
+        <span id="sysStatusText">系统正常</span>
+      </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <!-- Page Title -->
+      <div class="page-title">
+        <div class="title-left">
+          <div class="title-icon">&#x1F4E6;</div>
+          <div>
+            <h1 style="font-size:1.4rem;margin:0;">HDFS 数据湖状态</h1>
+            <div class="last-update" id="lastUpdate">最后更新: --</div>
+          </div>
+        </div>
+        <div class="quick-actions">
+          <button class="btn-refresh" onclick="refreshData()">&#x21BB; 刷新</button>
+        </div>
+      </div>
+
+      <!-- Service Status -->
+      <div class="service-status" id="serviceStatus">
+        <div class="service-badge">
+          <span class="dot" id="hdfsStatus"></span>
+          <span>HDFS</span>
+        </div>
+        <div class="service-badge">
+          <span class="dot" id="flumeStatus"></span>
+          <span>Flume</span>
+        </div>
+        <div class="service-badge">
+          <span class="dot" id="kafkaStatus"></span>
+          <span>Kafka</span>
+        </div>
+        <div class="service-badge">
+          <span class="dot" id="hiveStatus"></span>
+          <span>Hive</span>
+        </div>
+      </div>
+
+      <!-- Summary Cards -->
+      <div class="summary-grid" id="summaryGrid">
+        <div class="summary-card raw">
+          <div class="icon">&#x1F4C4;</div>
+          <div class="value" id="rawSize">--</div>
+          <div class="label">原始数据 /data_lake/raw</div>
+        </div>
+        <div class="summary-card cleaned">
+          <div class="icon">&#x2705;</div>
+          <div class="value" id="cleanedSize">--</div>
+          <div class="label">清洗数据 /data_lake/cleaned</div>
+        </div>
+        <div class="summary-card featured">
+          <div class="icon">&#x1F3AF;</div>
+          <div class="value" id="featuredSize">--</div>
+          <div class="label">特征数据 /data_lake/featured</div>
+        </div>
+        <div class="summary-card model">
+          <div class="icon">&#x1F3E2;</div>
+          <div class="value" id="modelSize">--</div>
+          <div class="label">模型文件 /data_lake/model</div>
+        </div>
+      </div>
+
+      <!-- Storage Distribution Chart -->
+      <div class="storage-chart-container">
+        <div id="storageChart" style="height: 280px;"></div>
+      </div>
+
+      <!-- Path Breadcrumb -->
+      <div class="path-breadcrumb" id="pathBreadcrumb">
+        <span class="crumb" onclick="navigateTo('/')">/</span>
+        <span class="separator">/</span>
+        <span class="crumb" onclick="navigateTo('/data_lake')">data_lake</span>
+      </div>
+
+      <!-- HDFS File List -->
+      <div class="hdfs-table-container">
+        <table class="hdfs-table">
+          <thead>
+            <tr>
+              <th style="width:40%;">名称</th>
+              <th style="width:15%;">类型</th>
+              <th style="width:15%;">大小</th>
+              <th style="width:15%;">权限</th>
+              <th style="width:15%;">修改时间</th>
+            </tr>
+          </thead>
+          <tbody id="fileListBody">
+            <tr>
+              <td colspan="5" class="loading-state">
+                <div class="loading-spinner">&#x21BB;</div>
+                <div style="margin-top:12px;">正在加载数据...</div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- HDFS Usage Info -->
+      <div style="margin-top:16px;display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+        <div class="hdfs-table-container" style="padding:16px;">
+          <h4 style="font-size:14px;color:var(--color-text-muted);margin-bottom:12px;">&#x1F4CA; 存储使用统计</h4>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+            <span>容量使用</span>
+            <span id="capacityUsage">--</span>
+          </div>
+          <div style="height:8px;background:var(--color-border);border-radius:4px;overflow:hidden;">
+            <div id="capacityBar" style="height:100%;background:linear-gradient(90deg,#1a73e8,#34a853);width:0%;transition:width 0.5s;"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;margin-top:16px;font-size:12px;color:var(--color-text-muted);">
+            <span>已用: <strong id="usedSpace">--</strong></span>
+            <span>总计: <strong id="totalSpace">--</strong></span>
+          </div>
+        </div>
+        <div class="hdfs-table-container" style="padding:16px;">
+          <h4 style="font-size:14px;color:var(--color-text-muted);margin-bottom:12px;">&#x1F4C5; HDFS 目录结构</h4>
+          <div style="font-size:13px;line-height:1.8;">
+            <div><span style="color:#ea4335;">&#x1F4C4;</span> /data_lake/raw</div>
+            <div style="padding-left:20px;"><span style="color:#1a73e8;">&#x1F4C4;</span> /data_lake/cleaned</div>
+            <div style="padding-left:20px;"><span style="color:#34a853;">&#x1F4C4;</span> /data_lake/featured</div>
+            <div style="padding-left:20px;"><span style="color:#9334e6;">&#x1F4C4;</span> /data_lake/model</div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="/dashboard/js/api.js"></script>
+  <script>
+    let currentPath = '/data_lake';
+    let pathHistory = ['/data_lake'];
+
+    // Format bytes to human readable
+    function formatBytes(bytes) {
+      if (bytes === 0) return '0 B';
+      const k = 1024;
+      const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+
+    // Format timestamp
+    function formatTime(timestamp) {
+      const d = new Date(timestamp);
+      return d.toLocaleString('zh-CN');
+    }
+
+    // Update path breadcrumb
+    function updateBreadcrumb() {
+      const parts = currentPath.split('/').filter(p => p);
+      let html = '<span class="crumb" onclick="navigateTo(\'/\')">/</span>';
+      let path = '';
+      parts.forEach((part, i) => {
+        path += '/' + part;
+        const isLast = i === parts.length - 1;
+        html += '<span class="separator">/</span>';
+        html += `<span class="crumb ${isLast ? 'active' : ''}" onclick="navigateTo('${path}')">${part}</span>`;
+      });
+      document.getElementById('pathBreadcrumb').innerHTML = html;
+    }
+
+    // Navigate to path
+    function navigateTo(path) {
+      currentPath = path;
+      updateBreadcrumb();
+      loadDirectory(path);
+    }
+
+    // Navigate to parent directory
+    function navigateUp() {
+      const parts = currentPath.split('/').filter(p => p);
+      if (parts.length > 1) {
+        parts.pop();
+        navigateTo('/' + parts.join('/'));
+      } else {
+        navigateTo('/');
+      }
+    }
+
+    // Load directory contents
+    async function loadDirectory(path) {
+      const tbody = document.getElementById('fileListBody');
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="5" class="loading-state">
+            <div class="loading-spinner">&#x21BB;</div>
+            <div style="margin-top:12px;">正在加载 ${path}...</div>
+          </td>
+        </tr>
+      `;
+
+      try {
+        const response = await fetch(`/api/datalake/ls?path=${encodeURIComponent(path)}`);
+        const data = await response.json();
+
+        if (data.error) {
+          tbody.innerHTML = `
+            <tr>
+              <td colspan="5" class="error-state">
+                <div class="icon">&#x26A0;</div>
+                <div>${data.error}</div>
+              </td>
+            </tr>
+          `;
+          return;
+        }
+
+        if (!data.files || data.files.length === 0) {
+          tbody.innerHTML = `
+            <tr>
+              <td colspan="5" class="empty-dir">
+                <div class="icon">&#x1F4C2;</div>
+                <div>目录为空</div>
+              </td>
+            </tr>
+          `;
+          return;
+        }
+
+        // Sort: directories first, then files
+        data.files.sort((a, b) => {
+          if (a.type === 'DIRECTORY' && b.type !== 'DIRECTORY') return -1;
+          if (a.type !== 'DIRECTORY' && b.type === 'DIRECTORY') return 1;
+          return a.pathSuffix.localeCompare(b.pathSuffix);
+        });
+
+        tbody.innerHTML = data.files.map(file => {
+          const isDir = file.type === 'DIRECTORY';
+          const icon = isDir ? '&#x1F4C1;' : '&#x1F4C4;';
+          const nameClass = isDir ? 'directory' : '';
+          const size = isDir ? '--' : formatBytes(file.length || 0);
+          const time = file.modificationTime ? formatTime(file.modificationTime) : '--';
+          const perm = file.permission || 'rw-r--r--';
+          const permClass = perm.includes('w') ? 'rw' : 'ro';
+          const clickHandler = isDir ? `onclick="navigateTo('${path}/${file.pathSuffix}')"` : '';
+
+          return `
+            <tr>
+              <td>
+                <span class="item-icon">${icon}</span>
+                <span class="item-name ${nameClass}" ${clickHandler}>${file.pathSuffix}</span>
+              </td>
+              <td>${isDir ? '目录' : '文件'}</td>
+              <td class="file-size">${size}</td>
+              <td><span class="perm-badge ${permClass}">${perm}</span></td>
+              <td>${time}</td>
+            </tr>
+          `;
+        }).join('');
+
+        // Update last update time
+        document.getElementById('lastUpdate').textContent = `最后更新: ${new Date().toLocaleTimeString('zh-CN')}`;
+
+      } catch (err) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="5" class="error-state">
+              <div class="icon">&#x26A0;</div>
+              <div>加载失败: ${err.message}</div>
+              <div style="margin-top:8px;font-size:12px;">请确保 Hadoop HDFS 服务已启动</div>
+            </td>
+          </tr>
+        `;
+      }
+    }
+
+    // Load storage summary
+    async function loadStorageSummary() {
+      try {
+        const response = await fetch('/api/datalake/summary');
+        const data = await response.json();
+
+        // Update summary cards
+        document.getElementById('rawSize').textContent = formatBytes(data.rawSize || 0);
+        document.getElementById('cleanedSize').textContent = formatBytes(data.cleanedSize || 0);
+        document.getElementById('featuredSize').textContent = formatBytes(data.featuredSize || 0);
+        document.getElementById('modelSize').textContent = formatBytes(data.modelSize || 0);
+
+        // Update storage info
+        if (data.capacity) {
+          document.getElementById('usedSpace').textContent = formatBytes(data.capacity.used || 0);
+          document.getElementById('totalSpace').textContent = formatBytes(data.capacity.total || 0);
+          document.getElementById('capacityUsage').textContent = ((data.capacity.used / data.capacity.total * 100) || 0).toFixed(1) + '%';
+          document.getElementById('capacityBar').style.width = ((data.capacity.used / data.capacity.total * 100) || 0) + '%';
+        }
+
+        // Update service status
+        updateServiceStatus('hdfsStatus', data.services?.hdfs);
+        updateServiceStatus('flumeStatus', data.services?.flume);
+        updateServiceStatus('kafkaStatus', data.services?.kafka);
+        updateServiceStatus('hiveStatus', data.services?.hive);
+
+        // Draw storage chart
+        drawStorageChart(data);
+
+      } catch (err) {
+        console.error('Failed to load summary:', err);
+      }
+    }
+
+    // Update service status indicator
+    function updateServiceStatus(elementId, status) {
+      const dot = document.getElementById(elementId);
+      if (status === 'running') {
+        dot.className = 'dot running';
+      } else if (status === 'stopped') {
+        dot.className = 'dot stopped';
+      } else {
+        dot.className = 'dot unknown';
+      }
+    }
+
+    // Draw storage distribution chart
+    function drawStorageChart(data) {
+      const chart = echarts.init(document.getElementById('storageChart'));
+      const option = {
+        title: {
+          text: '数据湖存储分布',
+          left: 'center',
+          textStyle: { fontSize: 14, fontWeight: '600' }
+        },
+        tooltip: {
+          trigger: 'item',
+          formatter: function(params) {
+            return `${params.name}<br/>${formatBytes(params.value)} (${params.percent}%)`;
+          }
+        },
+        legend: {
+          orient: 'vertical',
+          right: '5%',
+          top: 'center',
+          formatter: function(name) {
+            const index = option.series[0].data.findIndex(d => d.name === name);
+            const size = formatBytes(option.series[0].data[index]?.value || 0);
+            return `${name}: ${size}`;
+          }
+        },
+        series: [{
+          type: 'pie',
+          radius: ['40%', '70%'],
+          center: ['40%', '50%'],
+          avoidLabelOverlap: false,
+          itemStyle: {
+            borderRadius: 6,
+            borderColor: '#fff',
+            borderWidth: 2
+          },
+          label: {
+            show: true,
+            formatter: '{b}\n{d}%'
+          },
+          data: [
+            { value: data.rawSize || 0, name: '原始数据', itemStyle: { color: '#ea4335' } },
+            { value: data.cleanedSize || 0, name: '清洗数据', itemStyle: { color: '#34a853' } },
+            { value: data.featuredSize || 0, name: '特征数据', itemStyle: { color: '#1a73e8' } },
+            { value: data.modelSize || 0, name: '模型文件', itemStyle: { color: '#9334e6' } }
+          ]
+        }]
+      };
+      chart.setOption(option);
+      window.addEventListener('resize', () => chart.resize());
+    }
+
+    // Refresh data
+    function refreshData() {
+      loadStorageSummary();
+      loadDirectory(currentPath);
+    }
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', function() {
+      loadStorageSummary();
+      loadDirectory(currentPath);
+    });
+  </script>
+</body>
+</html>
