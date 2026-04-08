@@ -118,7 +118,68 @@ const API = {
   async repairEvaluation() {
     return this.get('/repair/evaluation');
   },
+
+  async repairMetrics() {
+    return this.get('/repair/metrics');
+  },
+
+  async repairRules() {
+    return this.get('/repair/rules');
+  },
+
+  /* ---------- 登录认证 ---------- */
+  async login(username, password) {
+    return this.post('/auth/login', { username, password });
+  },
+
+  async logout() {
+    return this.post('/auth/logout');
+  },
+
+  async getCurrentUser() {
+    return this.get('/auth/me');
+  },
 };
+
+/* ---------- 用户认证状态管理 ---------- */
+function checkAuth() {
+  const token = localStorage.getItem('auth_token');
+  const userStr = localStorage.getItem('auth_user');
+  if (!token || !userStr) {
+    // 未登录，跳转登录页（但允许login页面本身）
+    const path = window.location.pathname;
+    if (path !== '/login' && path !== '/dashboard/login.html') {
+      window.location.href = '/login';
+    }
+    return null;
+  }
+  try {
+    return JSON.parse(userStr);
+  } catch {
+    return null;
+  }
+}
+
+function logout() {
+  localStorage.removeItem('auth_token');
+  localStorage.removeItem('auth_user');
+  window.location.href = '/login';
+}
+
+function updateUserUI() {
+  const user = checkAuth();
+  const userInfo = document.getElementById('userInfo');
+  const userName = document.getElementById('userName');
+  if (user && userInfo) {
+    userInfo.style.display = 'flex';
+    if (userName) userName.textContent = user.username || 'admin';
+  }
+}
+
+// 导出到全局
+window.checkAuth = checkAuth;
+window.logout = logout;
+window.updateUserUI = updateUserUI;
 
 /* ---------- 数据模拟（无后端时提供示例数据） ---------- */
 const MockData = {

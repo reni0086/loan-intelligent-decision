@@ -137,6 +137,173 @@
 
     .status-dot.warning { background: var(--color-warning); }
     .status-dot.error { background: var(--color-danger); }
+
+    /* 单客户预测解释模块 */
+    .predict-explain-section {
+      margin-top: 16px;
+    }
+    .predict-input-row {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .predict-input-row input {
+      flex: 1;
+      max-width: 200px;
+    }
+    .shap-waterfall {
+      background: #fafbfc;
+      border-radius: 8px;
+      padding: 16px;
+    }
+    .shap-row {
+      display: flex;
+      align-items: center;
+      margin-bottom: 10px;
+      gap: 8px;
+    }
+    .shap-label {
+      min-width: 160px;
+      font-size: 13px;
+      color: var(--color-text);
+    }
+    .shap-bar-container {
+      flex: 1;
+      height: 18px;
+      background: #e8f0fe;
+      border-radius: 4px;
+      overflow: hidden;
+      position: relative;
+    }
+    .shap-bar {
+      height: 100%;
+      border-radius: 4px;
+      transition: width 0.5s;
+    }
+    .shap-bar.positive { background: linear-gradient(90deg, #f57c00, #ea4335); }
+    .shap-bar.negative { background: linear-gradient(90deg, #34a853, #1a73e8); }
+    .shap-value {
+      min-width: 60px;
+      text-align: right;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .shap-value.positive { color: #ea4335; }
+    .shap-value.negative { color: #1a73e8; }
+
+    /* 修复功能可视化 */
+    .repair-panel {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-top: 16px;
+    }
+    .repair-metric-card {
+      background: var(--color-card);
+      border-radius: var(--radius-sm);
+      padding: 14px;
+      box-shadow: var(--shadow-sm);
+    }
+    .repair-metric-card h4 {
+      font-size: 13px;
+      color: var(--color-text-muted);
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .repair-metric-card h4 span {
+      font-size: 16px;
+    }
+    .repair-stats {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .repair-stat-item {
+      text-align: center;
+      padding: 10px 8px;
+      background: #f7f9fc;
+      border-radius: 6px;
+    }
+    .repair-stat-item .value {
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: var(--color-text);
+    }
+    .repair-stat-item .label {
+      font-size: 11px;
+      color: var(--color-text-muted);
+      margin-top: 2px;
+    }
+    .repair-progress {
+      margin-top: 12px;
+    }
+    .repair-progress-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+    .repair-progress-item .label {
+      min-width: 80px;
+      font-size: 12px;
+      color: var(--color-text-muted);
+    }
+    .repair-progress-item .bar-wrap {
+      flex: 1;
+      height: 8px;
+      background: var(--color-border);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    .repair-progress-item .bar-fill {
+      height: 100%;
+      border-radius: 4px;
+      transition: width 0.5s;
+    }
+    .repair-progress-item .bar-fill.fp { background: #9334e6; }
+    .repair-progress-item .bar-fill.als { background: #1a73e8; }
+    .repair-progress-item .bar-value {
+      min-width: 50px;
+      text-align: right;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    /* 登录状态 */
+    .user-info {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-left: 16px;
+    }
+    .user-avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+    }
+    .user-name {
+      font-size: 13px;
+      color: white;
+    }
+    .btn-logout {
+      background: rgba(255,255,255,0.15);
+      border: 1px solid rgba(255,255,255,0.3);
+      color: white;
+      padding: 5px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 12px;
+    }
+    .btn-logout:hover {
+      background: rgba(255,255,255,0.25);
+    }
   </style>
 </head>
 <body>
@@ -156,6 +323,11 @@
       <div class="system-status">
         <span class="status-dot" id="sysStatusDot"></span>
         <span id="sysStatusText">系统正常</span>
+      </div>
+      <div class="user-info" id="userInfo" style="display:none;">
+        <div class="user-avatar">&#x1F464;</div>
+        <span class="user-name" id="userName">admin</span>
+        <button class="btn-logout" onclick="logout()">退出</button>
       </div>
     </header>
 
@@ -387,6 +559,142 @@
           </div>
         </div>
       </div>
+
+      <!-- 信息修复功能可视化 -->
+      <div class="section-label" style="margin-top:16px;">&#x1F527; 数据修复功能</div>
+      <div class="card">
+        <div class="card-body">
+          <div class="repair-panel">
+            <div class="repair-metric-card">
+              <h4><span>&#x1F3AF;</span> FP-Growth 关联规则修复</h4>
+              <div class="repair-stats">
+                <div class="repair-stat-item">
+                  <div class="value" id="fpCoverage">--</div>
+                  <div class="label">覆盖率</div>
+                </div>
+                <div class="repair-stat-item">
+                  <div class="value" id="fpAccuracy">--</div>
+                  <div class="label">准确率</div>
+                </div>
+                <div class="repair-stat-item">
+                  <div class="value" id="fpRulesCount">--</div>
+                  <div class="label">规则数量</div>
+                </div>
+                <div class="repair-stat-item">
+                  <div class="value" id="fpRowsRepaired">--</div>
+                  <div class="label">修复记录数</div>
+                </div>
+              </div>
+              <div class="repair-progress">
+                <div class="repair-progress-item">
+                  <span class="label">规则覆盖率</span>
+                  <div class="bar-wrap"><div class="bar-fill fp" id="fpCoverageBar" style="width:0%"></div></div>
+                  <span class="bar-value" id="fpCoverageVal">--</span>
+                </div>
+                <div class="repair-progress-item">
+                  <span class="label">修复准确率</span>
+                  <div class="bar-wrap"><div class="bar-fill fp" id="fpAccuracyBar" style="width:0%"></div></div>
+                  <span class="bar-value" id="fpAccuracyVal">--</span>
+                </div>
+              </div>
+            </div>
+            <div class="repair-metric-card">
+              <h4><span>&#x1F522;</span> ALS 矩阵分解修复</h4>
+              <div class="repair-stats">
+                <div class="repair-stat-item">
+                  <div class="value" id="alsCoverage">--</div>
+                  <div class="label">覆盖率</div>
+                </div>
+                <div class="repair-stat-item">
+                  <div class="value" id="alsRmse">--</div>
+                  <div class="label">RMSE</div>
+                </div>
+                <div class="repair-stat-item">
+                  <div class="value" id="alsMape">--</div>
+                  <div class="label">MAPE</div>
+                </div>
+                <div class="repair-stat-item">
+                  <div class="value" id="alsRowsRepaired">--</div>
+                  <div class="label">修复记录数</div>
+                </div>
+              </div>
+              <div class="repair-progress">
+                <div class="repair-progress-item">
+                  <span class="label">矩阵补全率</span>
+                  <div class="bar-wrap"><div class="bar-fill als" id="alsCoverageBar" style="width:0%"></div></div>
+                  <span class="bar-value" id="alsCoverageVal">--</span>
+                </div>
+                <div class="repair-progress-item">
+                  <span class="label">修复成功率</span>
+                  <div class="bar-wrap"><div class="bar-fill als" id="alsSuccessBar" style="width:0%"></div></div>
+                  <span class="bar-value" id="alsSuccessVal">--</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div style="margin-top:16px;padding:12px 16px;background:#f0f7ff;border-radius:8px;display:flex;justify-content:space-between;align-items:center;">
+            <div>
+              <div style="font-size:14px;font-weight:600;color:#1a73e8;">&#x1F4CA; 总体修复统计</div>
+              <div style="font-size:12px;color:#6b7785;margin-top:4px;">
+                总客户数: <strong id="repairTotal">--</strong> | 
+                已修复: <strong id="repairCount">--</strong> | 
+                修复率: <strong id="repairRate">--</strong>
+              </div>
+            </div>
+            <div style="font-size:14px;font-weight:600;color:#34a853;">
+              修复成功率: <span id="repairSuccessRate">--</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 单客户预测解释 -->
+      <div class="section-label" style="margin-top:16px;">&#x1F50D; 单客户预测解释</div>
+      <div class="card predict-explain-section">
+        <div class="card-body">
+          <div class="predict-input-row">
+            <input type="number" class="form-input" id="customerIdInput" placeholder="输入客户ID (如 100001)" min="1" />
+            <button class="btn btn-primary" onclick="loadCustomerPrediction()">查询预测解释</button>
+          </div>
+          <div id="shapExplanationPanel" style="display:none;">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
+              <div style="background:#f7f9fc;padding:16px;border-radius:8px;">
+                <div style="font-size:12px;color:#6b7785;">客户ID</div>
+                <div style="font-size:18px;font-weight:600;margin-top:4px;" id="shapCustomerId">--</div>
+              </div>
+              <div style="background:#f7f9fc;padding:16px;border-radius:8px;">
+                <div style="font-size:12px;color:#6b7785;">违约概率</div>
+                <div style="font-size:18px;font-weight:600;margin-top:4px;" id="shapDefaultProb">--</div>
+              </div>
+            </div>
+            <div style="background:#f7f9fc;padding:16px;border-radius:8px;margin-bottom:16px;">
+              <div style="font-size:12px;color:#6b7785;margin-bottom:12px;">决策结果</div>
+              <div id="shapDecision" style="font-size:16px;font-weight:600;">--</div>
+            </div>
+            <div class="shap-waterfall">
+              <div style="font-size:13px;font-weight:600;margin-bottom:12px;color:#1f2d3d;">&#x1F4CA; SHAP 特征影响分析</div>
+              <div id="shapWaterfallList"></div>
+              <div style="margin-top:16px;padding-top:12px;border-top:1px solid #e0e4e8;display:flex;justify-content:space-between;">
+                <div>
+                  <span style="font-size:12px;color:#6b7785;">基础值 (平均违约率)</span>
+                  <div style="font-weight:600;margin-top:2px;">15.0%</div>
+                </div>
+                <div style="text-align:right;">
+                  <span style="font-size:12px;color:#6b7785;">最终预测</span>
+                  <div style="font-weight:600;margin-top:2px;" id="shapFinalPred">--</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div id="shapLoading" style="display:none;text-align:center;padding:40px;color:#6b7785;">
+            <div class="loading" style="display:inline-flex;">加载中...</div>
+          </div>
+          <div id="shapEmpty" style="text-align:center;padding:40px;color:#6b7785;">
+            请输入客户ID并点击"查询预测解释"按钮
+          </div>
+        </div>
+      </div>
+
     </main>
   </div>
 

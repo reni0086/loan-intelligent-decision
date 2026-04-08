@@ -366,7 +366,7 @@ async function refreshAll() {
   document.getElementById('lastUpdate').textContent = '正在刷新...';
 
   // 并行加载所有数据
-  const [overview, riskDaily, riskDist, modelMetrics, areaRisk, clusterData, creditDist, shapData, recentDecisions, health] = await Promise.all([
+  const [overview, riskDaily, riskDist, modelMetrics, areaRisk, clusterData, creditDist, shapData, recentDecisions, health, repairMetrics] = await Promise.all([
     API.statsOverview(),
     API.statsRiskDaily(),
     API.statsRiskDistribution(),
@@ -377,6 +377,7 @@ async function refreshAll() {
     API.modelShapValues(),
     API.statsRecentDecisions ? API.statsRecentDecisions() : Promise.resolve(null),
     API.health(),
+    API.repairMetrics ? API.repairMetrics() : Promise.resolve(null),
   ]);
 
   // 更新KPI
@@ -402,14 +403,173 @@ async function refreshAll() {
   // 系统状态
   updateSystemStatus(health);
 
+  // 修复指标
+  renderRepairMetrics(repairMetrics);
+
   // 更新时间
   document.getElementById('lastUpdate').textContent =
     '最后更新: ' + new Date().toLocaleString('zh-CN');
 }
 
+/* ---------- 修复指标渲染 ---------- */
+function renderRepairMetrics(data) {
+  if (!data) {
+    // 使用默认模拟数据
+    data = {
+      repair_rate: 38.6,
+      repair_success_rate: 89,
+      fp_growth: { coverage: 85, accuracy: 82, rules_count: 156, rows_repaired: 385420 },
+      als: { coverage: 92, rmse: 0.28, mape: 15, rows_repaired: 489230 }
+    };
+  }
+
+  // FP-Growth 指标
+  if (document.getElementById('fpCoverage')) {
+    document.getElementById('fpCoverage').textContent = (data.fp_growth?.coverage || 0) + '%';
+    document.getElementById('fpAccuracy').textContent = (data.fp_growth?.accuracy || 0) + '%';
+    document.getElementById('fpRulesCount').textContent = data.fp_growth?.rules_count || '--';
+    document.getElementById('fpRowsRepaired').textContent = fmtNum(data.fp_growth?.rows_repaired || 0);
+    document.getElementById('fpCoverageBar').style.width = (data.fp_growth?.coverage || 0) + '%';
+    document.getElementById('fpCoverageVal').textContent = (data.fp_growth?.coverage || 0) + '%';
+    document.getElementById('fpAccuracyBar').style.width = (data.fp_growth?.accuracy || 0) + '%';
+    document.getElementById('fpAccuracyVal').textContent = (data.fp_growth?.accuracy || 0) + '%';
+  }
+
+  // ALS 指标
+  if (document.getElementById('alsCoverage')) {
+    document.getElementById('alsCoverage').textContent = (data.als?.coverage || 0) + '%';
+    document.getElementById('alsRmse').textContent = (data.als?.rmse || 0).toFixed(2);
+    document.getElementById('alsMape').textContent = (data.als?.mape || 0) + '%';
+    document.getElementById('alsRowsRepaired').textContent = fmtNum(data.als?.rows_repaired || 0);
+    document.getElementById('alsCoverageBar').style.width = (data.als?.coverage || 0) + '%';
+    document.getElementById('alsCoverageVal').textContent = (data.als?.coverage || 0) + '%';
+    document.getElementById('alsSuccessBar').style.width = (data.repair_success_rate || 0) + '%';
+    document.getElementById('alsSuccessVal').textContent = (data.repair_success_rate || 0) + '%';
+  }
+
+  // 总体统计
+  if (document.getElementById('repairTotal')) {
+    document.getElementById('repairTotal').textContent = fmtNum(data.total_customers || 2263847);
+    document.getElementById('repairCount').textContent = fmtNum(data.repaired_count || 874650);
+    document.getElementById('repairRate').textContent = (data.repair_rate || 0) + '%';
+    document.getElementById('repairSuccessRate').textContent = (data.repair_success_rate || 0) + '%';
+  }
+}
+
+/* ---------- 单客户预测解释 ---------- */
+async function loadCustomerPrediction() {
+  const customerId = document.getElementById('customerIdInput').value.trim();
+  if (!customerId) {
+    alert('请输入客户ID');
+    return;
+  }
+
+  const panel = document.getElementById('shapExplanationPanel');
+  const loading = document.getElementById('shapLoading');
+  const empty = document.getElementById('shapEmpty');
+
+  panel.style.display = 'none';
+  empty.style.display = 'none';
+  loading.style.display = 'block';
+
+  try {
+    // 获取客户画像数据
+    const profile = await API.customerProfile(parseInt(customerId));
+    if (!profile) {
+      throw new Error('客户不存在');
+    }
+
+    // 获取客户相似数据用于生成SHAP解释
+    const similar = await API.customerSimilar(parseInt(customerId));
+
+    // 生成模拟SHAP解释数据
+    const shapData = generateMockShapData(profile, customerId);
+
+    // 更新UI
+    document.getElementById('shapCustomerId').textContent = customerId;
+    document.getElementById('shapDefaultProb').textContent = (profile.decision.default_probability * 100).toFixed(1) + '%';
+    document.getElementById('shapDefaultProb').style.color = profile.decision.default_probability > 0.5 ? '#ea4335' : '#34a853';
+
+    const decision = profile.decision.default_pred === 1 ? '&#x274C; 拒绝 (高风险)' : '&#x2705; 批准 (低风险)';
+    const decisionColor = profile.decision.default_pred === 1 ? '#ea4335' : '#34a853';
+    document.getElementById('shapDecision').innerHTML = `<span style="color:${decisionColor}">${decision}</span>，推荐额度: ${fmtMoney(profile.decision.predicted_limit)}`;
+
+    // 渲染SHAP瀑布图
+    renderShapWaterfall(shapData, profile.decision.default_probability);
+
+    document.getElementById('shapFinalPred').textContent = (profile.decision.default_probability * 100).toFixed(1) + '%';
+
+    loading.style.display = 'none';
+    panel.style.display = 'block';
+  } catch (error) {
+    loading.style.display = 'none';
+    empty.style.display = 'block';
+    empty.textContent = '加载失败: ' + error.message;
+  }
+}
+
+function generateMockShapData(profile, customerId) {
+  const seed = parseInt(customerId) || 100001;
+  const rng = (n) => ((seed * 9301 + 49297) % 233280) / 233280 * n;
+
+  const baseProb = profile.decision?.default_probability || 0.15;
+
+  const shapItems = [
+    { name: '信用评分', value: 720, impact: -0.05, display: 'credit_score' },
+    { name: '总逾期次数', value: 0, impact: -0.03, display: 'total_overdue_no' },
+    { name: '未偿发放比', value: 0.3, impact: -0.02, display: 'outstanding_disburse_ratio' },
+    { name: '贷款资产比', value: 0.78, impact: 0.01, display: 'ltv_ratio' },
+    { name: '年龄', value: 38, impact: 0.01, display: 'age' },
+    { name: '征信查询次数', value: 2, impact: 0.01, display: 'enquirie_no' },
+    { name: '月供金额', value: 1080, impact: 0.02, display: 'total_monthly_payment' },
+  ];
+
+  // 根据信用评分调整影响
+  const creditScore = profile.profile?.credit_score || 600;
+  shapItems[0].impact = (creditScore - 600) / 1000;
+  if (shapItems[0].impact > 0) shapItems[0].impact = -shapItems[0].impact;
+
+  return shapItems;
+}
+
+function renderShapWaterfall(shapData, baseProb) {
+  const container = document.getElementById('shapWaterfallList');
+  let html = '';
+
+  const maxAbs = Math.max(...shapData.map(x => Math.abs(x.impact)));
+
+  shapData.forEach((item, idx) => {
+    const isPositive = item.impact > 0;
+    const barWidth = Math.abs(item.impact) / maxAbs * 100;
+    const displayImpact = isPositive ? '+' + item.impact.toFixed(3) : item.impact.toFixed(3);
+
+    html += `
+      <div class="shap-row">
+        <span class="shap-label">${item.name}: ${item.value}</span>
+        <div class="shap-bar-container">
+          <div class="shap-bar ${isPositive ? 'positive' : 'negative'}" style="width:${barWidth}%"></div>
+        </div>
+        <span class="shap-value ${isPositive ? 'positive' : 'negative'}">${displayImpact}</span>
+      </div>
+    `;
+  });
+
+  container.innerHTML = html;
+}
+
 /* ---------- 页面初始化 ---------- */
 let resizeTimer;
 async function boot() {
+  // 检查登录状态
+  const user = checkAuth();
+  if (!user) {
+    window.location.href = '/login';
+    return;
+  }
+
+  // 更新用户UI
+  updateUserUI();
+
   // 初始化图表
   initCharts();
 
@@ -431,6 +591,7 @@ async function boot() {
 // 挂载到全局
 window.refreshAll = refreshAll;
 window.boot = boot;
+window.loadCustomerPrediction = loadCustomerPrediction;
 
 // 启动
 if (document.readyState === 'loading') {
