@@ -275,7 +275,7 @@
 
 ```json
 {
-  "total_customers": 2263847,
+  "total_customers": 150000,
   "total_amount": 158.24,
   "overdue_rate": 0.0582,
   "new_customers": 12458,

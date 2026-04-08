@@ -23,8 +23,8 @@ def stats_overview():
     # If no real data, return mock overview
     if not summary or summary.get("realtime_events", 0) == 0:
         summary = {
-            "total_customers": 2263847,
-            "total_amount": 158.24,
+            "total_customers": 150000,
+            "total_amount": 8.52,
             "overdue_rate": 0.0582,
             "new_customers": 12458,
             "realtime_events": 0,

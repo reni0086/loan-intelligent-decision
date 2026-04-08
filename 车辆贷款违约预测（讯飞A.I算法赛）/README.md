@@ -2,7 +2,7 @@
 
 ## 项目介绍
 
-本项目是一个完整的大数据 + AI 驱动信贷决策平台，基于 LendingClub 226万条真实贷款数据构建，涵盖从数据采集、清洗、修复到智能决策的全链路功能。
+本项目是一个完整的大数据 + AI 驱动信贷决策平台，基于 LendingClub 15万条真实贷款数据构建，涵盖从数据采集、清洗、修复到智能决策的全链路功能。
 
 ### 核心功能
 
@@ -117,7 +117,7 @@ python app.py
 │   ├── fraud_model.joblib        # 欺诈检测模型
 │   ├── limit_model.joblib        # 额度预测模型
 │   └── model_registry.json       # 模型注册表
-├── car_loan_train.csv           # 训练数据集 (226万条)
+├── car_loan_train.csv           # 训练数据集 (15万条)
 └── test.csv                     # 测试数据集
 ```
 

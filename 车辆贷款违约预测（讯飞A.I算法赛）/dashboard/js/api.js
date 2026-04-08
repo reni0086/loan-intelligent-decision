@@ -184,8 +184,8 @@ window.updateUserUI = updateUserUI;
 /* ---------- 数据模拟（无后端时提供示例数据） ---------- */
 const MockData = {
   overview: {
-    total_customers: 2263847,
-    total_amount: 158.24,
+    total_customers: 150000,
+    total_amount: 8.52,
     overdue_rate: 5.82,
     new_customers: 12458,
   },

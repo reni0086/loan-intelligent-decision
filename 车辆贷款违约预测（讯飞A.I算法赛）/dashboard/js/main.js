@@ -449,7 +449,7 @@ function renderRepairMetrics(data) {
 
   // 总体统计
   if (document.getElementById('repairTotal')) {
-    document.getElementById('repairTotal').textContent = fmtNum(data.total_customers || 2263847);
+    document.getElementById('repairTotal').textContent = fmtNum(data.total_customers || 150000);
     document.getElementById('repairCount').textContent = fmtNum(data.repaired_count || 874650);
     document.getElementById('repairRate').textContent = (data.repair_rate || 0) + '%';
     document.getElementById('repairSuccessRate').textContent = (data.repair_success_rate || 0) + '%';

@@ -39,7 +39,7 @@ MOCK_REPAIR_METRICS = {
         "rows_repaired": 489230,
     },
     "overall": {
-        "rows_total": 2263847,
+        "rows_total": 150000,
         "rows_repaired": 874650,
         "repair_rate": 0.386,
         "repair_success_rate": 0.89,
