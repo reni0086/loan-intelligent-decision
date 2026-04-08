@@ -106,7 +106,38 @@ hdfs dfs -ls /data_lake/raw/
 # 应看到 Flume 写入的 Parquet 文件
 ```
 
-### 步骤 5：HDFS 目录 + Hive 表初始化
+### 步骤 5：Sqoop 1.4.7（MySQL ↔ Hive 双向同步）
+
+```bash
+chmod +x deploy/vm/install_sqoop.sh
+sudo ./deploy/vm/install_sqoop.sh
+```
+
+验证：
+
+```bash
+sqoop version
+# 应显示 Sqoop 1.4.7
+
+# 测试连接 MySQL：
+sqoop list-databases \
+    --connect jdbc:mysql://localhost:3306/loan_ods \
+    --username loan_user \
+    --password 'loan_pass_123'
+# 应显示：loan_ods, loan_rt
+```
+
+同步命令：
+
+```bash
+# Hive → MySQL 同步（导出）：
+bash deploy/vm/sqoop_export_hive_mysql.sh
+
+# MySQL → Hive 同步（导入）：
+bash deploy/vm/sqoop_import_mysql_hive.sh
+```
+
+### 步骤 6：HDFS 目录 + Hive 表初始化
 
 ```bash
 chmod +x deploy/vm/init_hdfs_layout.sh
@@ -132,7 +163,7 @@ mysql -u loan_user -p -e "SHOW DATABASES;"
 # loan_ods  loan_rt
 ```
 
-### 步骤 6：安装 Python 依赖
+### 步骤 7：安装 Python 依赖
 
 ```bash
 source /opt/bigdata/loan-venv/bin/activate
@@ -167,9 +198,8 @@ spark-submit jobs/batch/repair_als_spark.py \
 spark-submit jobs/batch/evaluate_repair.py \
     --output-json artifacts/spark_repair_metrics.json
 
-# 5. Hive → MySQL 同步
-spark-submit jobs/batch/sync_hive_mysql.py \
-    --upsert-mode
+# 5. Hive → MySQL 同步（Sqoop 导出）：
+bash deploy/vm/sqoop_export_hive_mysql.sh
 
 # 6. 训练模型（features_v3 增强特征）
 spark-submit jobs/batch/train_from_hive.py \

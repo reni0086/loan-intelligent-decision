@@ -93,16 +93,22 @@ spark-submit jobs/batch/evaluate_repair.py \
   --output-json artifacts/spark_repair_metrics.json
 ```
 
-### 第 7 步：执行 Hive 与 MySQL 同步
+### 第 7 步：安装 Sqoop（MySQL ↔ Hive 同步）
+
 ```bash
-spark-submit jobs/batch/sync_hive_mysql.py \
-  --dt "$(date +%F)" \
-  --mysql-url "jdbc:mysql://127.0.0.1:3306?useSSL=false&serverTimezone=UTC" \
-  --mysql-user loan_user \
-  --mysql-password loan_pass_123
+bash deploy/vm/install_sqoop.sh
+
+# 验证安装：
+sqoop version
 ```
 
-### 第 8 步：启动 API 服务
+### 第 8 步：执行 Sqoop Hive→MySQL 同步
+
+```bash
+bash deploy/vm/sqoop_export_hive_mysql.sh
+```
+
+### 第 9 步：启动 API 服务
 ```bash
 python service/flask/app.py
 ```

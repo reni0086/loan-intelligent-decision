@@ -98,7 +98,7 @@ else
 fi
 
 # ---------- Step 6: Flume ----------
-section "Step 6/7 — Flume 1.11"
+section "Step 6/8 — Flume 1.11"
 if [[ -f "${DEPLOY_DIR}/install_flume.sh" ]]; then
     bash "${DEPLOY_DIR}/install_flume.sh"
 else
@@ -112,8 +112,16 @@ if [[ -f "${DEPLOY_DIR}/flume_agent.conf" ]]; then
     cp "${DEPLOY_DIR}/flume_agent.conf" /opt/flume/conf/flume-agent.conf
 fi
 
+# ---------- Step 6.5: Sqoop ----------
+section "Step 6.5/8 — Sqoop 1.4.7（MySQL ↔ Hive 双向同步）"
+if [[ -f "${DEPLOY_DIR}/install_sqoop.sh" ]]; then
+    bash "${DEPLOY_DIR}/install_sqoop.sh"
+else
+    warn "install_sqoop.sh 未找到，跳过。"
+fi
+
 # ---------- Step 7: HDFS 目录初始化 ----------
-section "Step 7/7 — HDFS 目录 + Hive 表 + MySQL 表"
+section "Step 8/8 — HDFS 目录 + Hive 表 + MySQL 表"
 if [[ -f "${DEPLOY_DIR}/init_hdfs_layout.sh" ]]; then
     bash "${DEPLOY_DIR}/init_hdfs_layout.sh"
 else
@@ -154,6 +162,7 @@ command -v spark-submit &>/dev/null && spark-submit --version 2>&1 | head -3 || 
 command -v hive &>/dev/null && echo "Hive: $(hive --version 2>/dev/null | head -1)" || echo "Hive: 未找到"
 command -v mysql &>/dev/null && echo "MySQL: $(mysql --version 2>/dev/null | head -1)" || echo "MySQL: 未找到"
 command -v flume-ng &>/dev/null && echo "Flume: $(flume-ng version 2>/dev/null | head -1)" || echo "Flume: 未找到"
+command -v sqoop &>/dev/null && echo "Sqoop: $(sqoop version 2>&1 | grep 'Sqoop' | head -1)" || echo "Sqoop: 未找到"
 echo "Kafka: ${KAFKA_HOME:-未找到}"
 echo "Python venv: /opt/bigdata/loan-venv"
 echo "JDBC JAR: ${JDBC_JAR:-未设置}"
@@ -184,5 +193,14 @@ echo "  FLASK_APP=service/flask/app.py flask run --host 0.0.0.0 --port 5000"
 echo ""
 echo "  # 查看 Kafka topics:"
 echo "  /opt/kafka/kafka/bin/kafka-topics.sh --list --bootstrap-server localhost:9092"
+echo ""
+echo "  # Sqoop 测试连接:"
+echo "  sqoop list-databases --connect jdbc:mysql://localhost:3306/loan_ods --username loan_user --password 'loan_pass_123'"
+echo ""
+echo "  # Sqoop Hive→MySQL 同步:"
+echo "  bash deploy/vm/sqoop_export_hive_mysql.sh"
+echo ""
+echo "  # Sqoop MySQL→Hive 同步:"
+echo "  bash deploy/vm/sqoop_import_mysql_hive.sh"
 echo ""
 echo -e "${GREEN}部署完成！请参考上方启动命令启动各服务。${NC}"
