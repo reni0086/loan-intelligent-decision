@@ -685,8 +685,16 @@
       loadDirectory(currentPath);
     }
 
-    // Initialize
+    // Initialize with auth check
     document.addEventListener('DOMContentLoaded', function() {
+      // 检查登录状态
+      const user = checkAuth();
+      if (!user) {
+        window.location.href = '/login';
+        return;
+      }
+
+      // 已登录，加载数据
       loadStorageSummary();
       loadDirectory(currentPath);
     });

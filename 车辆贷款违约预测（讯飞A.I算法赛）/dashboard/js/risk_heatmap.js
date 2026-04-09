@@ -168,6 +168,13 @@ function setHeatmapFilter(filter) {
 
 /* ---------- 页面初始化 ---------- */
 function boot() {
+  // 检查登录状态
+  const user = checkAuth();
+  if (!user) {
+    window.location.href = '/login';
+    return;
+  }
+
   // 延迟初始化地图，等待DOM就绪
   setTimeout(initRiskMap, 300);
 

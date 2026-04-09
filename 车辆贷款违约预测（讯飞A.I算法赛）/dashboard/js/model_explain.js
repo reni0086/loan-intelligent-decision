@@ -360,6 +360,13 @@ function updateThreshold(value) {
 let resizeTimer;
 
 function boot() {
+  // 检查登录状态
+  const user = checkAuth();
+  if (!user) {
+    window.location.href = '/login';
+    return;
+  }
+
   // 加载所有图表
   renderShapBarChart(MockShapData);
   renderModelCompareChart(MockModelCompare);

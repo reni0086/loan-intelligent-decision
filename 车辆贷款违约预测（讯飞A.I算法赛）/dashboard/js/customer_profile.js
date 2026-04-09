@@ -348,6 +348,13 @@ function loadRandomCustomer() {
 
 /* ---------- Enter 键搜索 ---------- */
 document.addEventListener('DOMContentLoaded', () => {
+  // 检查登录状态
+  const user = checkAuth();
+  if (!user) {
+    window.location.href = '/login';
+    return;
+  }
+
   const input = document.getElementById('customerIdInput');
   if (input) {
     input.addEventListener('keypress', (e) => {
