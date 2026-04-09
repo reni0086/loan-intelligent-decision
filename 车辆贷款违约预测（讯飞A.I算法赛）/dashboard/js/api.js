@@ -146,9 +146,9 @@ function checkAuth() {
   const token = localStorage.getItem('auth_token');
   const userStr = localStorage.getItem('auth_user');
   if (!token || !userStr) {
-    // 未登录，跳转登录页（但允许login页面本身）
+    // 未登录，跳转登录页（但如果是登录页本身则不重定向）
     const path = window.location.pathname;
-    if (path !== '/login' && path !== '/dashboard/login.html') {
+    if (!path.endsWith('login.html') && path !== '/login') {
       window.location.href = '/login';
     }
     return null;
